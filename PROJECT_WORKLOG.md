@@ -259,8 +259,8 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 # 3. Current state
 
 - **Current branch:** `main`；2026-08-12 已在 `/home/kali/CAN` 初始化本地 Git repository，并配置 `origin` 为 `https://github.com/cyd56-ops/CAN.git`。
-- **Full HEAD commit:** 首次项目导入提交位于 `main` 的 `HEAD`；其 SHA 以 Git metadata 为准，不在工作日志中重复保存。
-- **Worktree state:** 初始提交包含 103 个 source、test、configuration 和 documentation 文件；`.gitignore` 排除了 `.venv/`、`data/`、`artifacts/`、checkpoints、模型权重和 `paper/*.pdf`。首次推送后应复核 `git status --short --branch` 为干净并跟踪 `origin/main`。
+- **Full HEAD commit:** `main` 包含首次项目导入及其后的 GitHub authentication-blocker documentation checkpoint；准确 SHA 以 Git metadata 为准，不在工作日志中重复保存。
+- **Worktree state:** `bdca23417a7b9382051463ffff80a6659c7ca339` 是初始项目导入提交，包含 103 个 source、test、configuration 和 documentation 文件；`.gitignore` 排除了 `.venv/`、`data/`、`artifacts/`、checkpoints、模型权重和 `paper/*.pdf`。当前 `main` 尚未跟踪远端分支，等待 GitHub 认证后推送。
 - **Compute resource:** `SERVER_REQUIRED`。V1-C1 已在本机完成，唯一下一步现为 V1-M1 GPU/software
   tuple 冻结；已通知项目负责人。在冻结 GPU、driver/CUDA、PyTorch wheel/hash 和确定性策略前，不下载
   CIFAR-100、不安装正式服务器环境、不运行正式训练或产生论文训练结果。
@@ -409,7 +409,7 @@ CIFAR-100 训练、Fiat--Shamir、ML-DSA 或 Stage B。**
 
 # 7. Blockers and residual risks
 
-- **Git publication status:** 本地 `main` 已初始化，且 `origin` 已指向 `https://github.com/cyd56-ops/CAN.git`。远端 `git ls-remote --heads` 返回空，表示未发现既有分支；首次提交仍需创建并经 GitHub 认证推送。提交前的敏感模式扫描未发现常见 private key、GitHub token 或 AWS access key 模式。
+- **Git publication status:** 本地 `main` 已初始化，且 `origin` 已指向 `https://github.com/cyd56-ops/CAN.git`。远端 `git ls-remote --heads` 返回空，表示未发现既有分支；初始提交 `bdca23417a7b9382051463ffff80a6659c7ca339` 已创建。`git push -u origin main` 因无交互 GitHub HTTPS 凭据而失败（`could not read Username`）；本机没有 credential helper、GitHub CLI 或可用 SSH agent。远端尚未写入。提交前的敏感模式扫描未发现常见 private key、GitHub token 或 AWS access key 模式。
 - **V1-M1 server availability:** 2026-08-12 的本机只读探测表明当前 WSL2 主机未暴露可用 GPU：`nvidia-smi` 不存在，PCI 仅显示 `Microsoft Corporation Basic Render Driver`，`.venv` 中的 `torch=2.13.0+cpu`、`torchvision=0.28.0+cpu`、`torch.cuda.is_available()=False`、CUDA device count 为 `0`。仓库中也不存在服务器端点、连接配置或 V1-M1 远程 probe 工具。因此尚不能冻结实际 GPU/software tuple 或执行 GPU smoke check；未下载数据、未安装服务器依赖、未开始训练。仍需由项目负责人提供已授权的服务器访问环境后继续。
 - **Artifact lifecycle:** D-024 重新物化的两个 `state_dict`、manifest 和 `capability.json` 只位于
   ignored `artifacts/a2/`；它们不得提交、上传或进入发布包。任何删除后的再次生成都必须重跑固定
@@ -474,7 +474,16 @@ CIFAR-100 训练、Fiat--Shamir、ML-DSA 或 Stage B。**
 - **Initial staging boundary:** `git add .` 后精确暂存 103 个 source、test、configuration 和 documentation 文件，共 27,304 insertions；忽略规则保留 `.venv/`、`data/`、`artifacts/`、`checkpoints/`、`*.pt`、`*.pth`、`*.ckpt` 与 `paper/*.pdf`。常见 private key、GitHub token 与 AWS access-key 模式扫描无匹配；`git diff --cached --check` 仅报告 `.gitignore` 与 `requirements-dev.lock` 的既有 EOF blank-line 提示。
 - **Boundary held:** 未将训练数据、artifacts、checkpoint、local state、secret、credential 或 reference PDF 暂存。此 Git bootstrap 不修改 V1-M1 的 `SERVER_REQUIRED` 状态，未下载数据或运行训练。
 - **Verification:** `bash -n scripts/check_governance_docs.sh` -> passed; `./scripts/check_governance_docs.sh` -> `governance documentation check: PASS`.
-- **Next operation:** 创建 `Initial import of CAN research project` commit，并在 GitHub HTTPS authentication 成功时推送 `main`；若认证不可用，保留本地 commit 并向项目负责人报告准确错误。
+- **Initial commit:** `git commit -m 'Initial import of CAN research project'` created root commit `bdca23417a7b9382051463ffff80a6659c7ca339` on `main`, authored as `cyd56-ops <yandachen56@gmail.com>`; it contains the audited 103-file initial import.
+- **Push attempt:** `git push -u origin main` returned `fatal: could not read Username for 'https://github.com': No such device or address`. `origin` remains the configured HTTPS URL, and `main` has no upstream. A follow-up probe found no configured credential helper, no installed `gh` CLI, and no running SSH agent; no credential, token, private key, or remote write was created.
+- **Next operation:** after the project负责人 completes GitHub authentication in this environment, push `main` to `origin`. The local commit history is retained and no history rewrite is needed.
+
+## 2026-08-12 - GitHub authentication blocker checkpoint
+
+- Verified the post-push local state: `main` is clean at local commit `bdca23417a7b9382051463ffff80a6659c7ca339`, `origin` is `https://github.com/cyd56-ops/CAN.git`, and no upstream tracking branch exists.
+- The repository cannot use HTTPS push without an authenticated credential, and no non-interactive credential helper is configured. `ssh-add -l` reports no authentication agent, so an SSH remote cannot be used without separately authorizing and loading a GitHub SSH key.
+- Boundary held: no access token, password, private key, data, artifact, checkpoint, or local reference PDF was printed, stored, committed, or uploaded. GitHub has not received project content in this session.
+- Commit-ready candidate file list: `PROJECT_WORKLOG.md` only. This local checkpoint records the authentic publication state and does not change V1-M1 `SERVER_REQUIRED`.
 
 ## 2026-08-12 - V1-M1 server availability probe
 
