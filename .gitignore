@@ -1,0 +1,23 @@
+# Python environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Packaging output
+build/
+dist/
+*.egg-info/
+
+# Local data and generated research artifacts
+data/
+artifacts/
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# Local reference papers are not committed until redistribution is cleared.
+paper/*.pdf
