@@ -50,8 +50,10 @@ headline model 路线，但尚未下载或训练。独立非生产 `V1-P2-PSR-E1
 single attempt、A3-v2 fresh-transcript retry/exhaustion harness、公开 vector manifest 和 exact
 differential。`V1-C1-MSIS` 已实现固定 dependency-free coefficient-domain graph、全 canonical input
 `V_nn==V_ref` 证明、独立 valid/tamper differential 和 A3-v2 neural evidence route；accept 最多一次
-protected call，relation reject 与 foreign route 均为零 protected calls。当前唯一下一步是冻结
-V1-M1 GPU/software tuple；在该冻结前不下载 CIFAR-100、不训练，亦不开始 V2 或 Stage B。
+protected call，relation reject 与 foreign route 均为零 protected calls。V1-M1 GPU/software tuple、
+CIFAR-100 data/training protocol 及 isolated model/archive parser/adapter/baseline runner 已冻结并通过本机
+unit/security tests；尚未下载数据或训练。当前唯一下一步是 `SERVER_REQUIRED` 的首次正式 archive 下载与
+两次 CIFAR-100/ResNet-18 baseline；不开始 V2 或 Stage B。
 
 ## Success conditions
 
@@ -118,13 +120,15 @@ input adapter 和门控实验尚未实现；现有 Fashion-MNIST/MLP 路线保�
 - `src/can/verifier/`：已实现 A1-C1 不可变 compiled profile/registry、固定三层 affine/ReLU graph、
   dependency-free 与 A1-B1 PyTorch CPU exact-integer backends，以及 A4-C1 dependency-free sparse
   exact graph 和 evidence-only adapters。
-- `src/can/model/`：已实现 A2-E1 protected MLP 与 A2-E2 独立 public MLP、严格 tensor/label 校验。
-- `src/can/access/`：已实现 A2-E1/A2-E2 协调器、A3-v1 协议壳、A4 evidence adapter，以及 V1-P2
-  A3-v2 commit-first 单次终态状态机和 exact evidence adapter。
+- `src/can/model/`：已实现 A2-E1 protected MLP、A2-E2 独立 public MLP，以及 V1-M1 独立
+  CIFAR-style ResNet-18。
+- `src/can/access/`：已实现 A2-E1/A2-E2 协调器、A3-v1 协议壳、A4 evidence adapter、V1-P2
+  A3-v2 commit-first 单次终态状态机和 exact evidence adapter，以及 V1-M1 raw CIFAR adapter/route。
 - `src/can/experiments/`：已实现 A2-E1/A2-E2 数据核验、确定性训练/评估、gate 标签等价、trusted
   state materialization/加载、三态只评估、latency 和报告入口，以及 V1-P2 generated-key、SHAKE256
-  sampler、single-attempt prover 和无 secret manifest。
-- `tests/`：已有 A0/A1、A2、A3、A4、V1-P2/A3-v2 和 V1-P2-PSR-E1 的单元、差分、集成和防御性安全测试。
+  sampler、single-attempt prover、无 secret manifest 和 V1-M1 无下载 baseline runner。
+- `tests/`：已有 A0/A1、A2、A3、A4、V1-P2/A3-v2、V1-P2-PSR-E1 和 V1-M1 的单元、差分、集成和
+  防御性安全测试。
 - `scripts/check_governance_docs.sh`：对必需文档、bootstrap 文件、唯一下一步和任务状态枚举执行确定性检查。
 - `paper/`：两篇本地相关工作，仅作为研究参考资料。
 
@@ -252,29 +256,33 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
   opaque snapshot。一个 parsed response attempt、abort 或 expiry 原子终结 transcript；并发 replay
   最多一次 verifier/allow/protected call，pre-commit reject 均为零 protected calls。
 - V1-M1 固定独立 `CAN-V1-CIFAR100-RESNET18-v1` headline route 和 `(1,3,32,32)` uint8/RGB input
-  contract；数据 source/digest、训练环境、超参数、accepted weights、input adapter 和 gate 尚未实现。
+  contract；archive/source digest、训练环境、超参数、CIFAR-style ResNet-18、strict adapter 和无下载
+  runner 已实现。数据、weights、正式 baseline/gate 与性能结果均尚未产生。
 - MoE Router 和自然语言输出不能创建权限，工具网关必须用真实调用参数重新验证 capability。
 - 未经代码、证明和测试支持，不声称任何密码或系统安全性质。
 
 # 3. Current state
 
 - **Current branch:** `main`；2026-08-12 已在 `/home/kali/CAN` 初始化本地 Git repository，并配置 `origin` 为 `https://github.com/cyd56-ops/CAN.git`。
-- **Full HEAD commit:** `main` 包含首次项目导入及其后的 GitHub authentication-blocker documentation checkpoint；准确 SHA 以 Git metadata 为准，不在工作日志中重复保存。
-- **Worktree state:** `bdca23417a7b9382051463ffff80a6659c7ca339` 是初始项目导入提交，包含 103 个 source、test、configuration 和 documentation 文件；`.gitignore` 排除了 `.venv/`、`data/`、`artifacts/`、checkpoints、模型权重和 `paper/*.pdf`。当前 `main` 尚未跟踪远端分支，等待 GitHub 认证后推送。
-- **Compute resource:** `SERVER_REQUIRED`。V1-C1 已在本机完成，唯一下一步现为 V1-M1 GPU/software
-  tuple 冻结；已通知项目负责人。在冻结 GPU、driver/CUDA、PyTorch wheel/hash 和确定性策略前，不下载
-  CIFAR-100、不安装正式服务器环境、不运行正式训练或产生论文训练结果。
+- **Full HEAD commit:** `ae79db187450cff0272458333c1883ef7aefcccc`（`Record GitHub publication authentication status`）。
+- **Worktree state:** 唯一 worktree 为 `/home/kali/CAN`；当前修改/新增的 checkpoint 文件列于 D-042，
+  其余工作树状态由最终 `git status --short` 复核。`.gitignore` 排除了 `.venv/`、`data/`、`artifacts/`、
+  checkpoints、模型权重和 `paper/*.pdf`。当前 `main` 尚未跟踪远端分支，等待 GitHub 认证后推送。
+- **Compute resource:** `LOCAL_OK`。已授权的 AutoDL A4000 环境已完成 V1-M1 GPU/software tuple
+  冻结和 CUDA smoke；CIFAR-100 archive/source/hash、许可边界、切分、preprocessing、training protocol、
+  acceptance threshold、isolated implementation 与 artifact/report writer 已闭合。当前只形成并同步代码
+  checkpoint；首次正式 archive 下载或两次训练仍必须只在已记录的 A4000 tuple 上执行。
 - **Filesystem state:** 当前包含治理/研究/安全与 A0--A4/V1 协议、规格和构造决定文档、Python 项目及开发/ML 依赖锁、A0/A4/V1 exact reference、A1 两个 verifier backends、A4-C1/V1-C1 dependency-free verifiers、A2-E1/A2-E2 模型与协调器、A3-v1/A3-v2 state/coordinator、A4/V1 exact/neural evidence adapters、单元/差分/集成/安全测试和治理检查脚本；ignored `data/a2/` 与 `artifacts/a2/` 保存数据、local states、manifest、license 和报告，`paper/` 保存两份 ignored PDF；`.git` 现为本地 Git metadata，`.agents` 与 `.codex` 目录仍为空。
-- **Completed modules:** A0 parser/reference evidence、A1 exact backends、A2-E1/A2-E2 模型/协调器/实验、A3-v1 默认关闭协议壳、A4 exact/neural relation 与 adapters，以及 V1-P2 non-production public profile/parser/registry、coefficient-domain exact relation、A3-v2 commit-first single-terminal coordinator、exact/neural evidence adapters、`V1-C1-MSIS` graph、`V1-P2-PSR-E1` generated-key/sampler/single-attempt experiment 和 fresh-transcript retry/exhaustion harness 已实现。V1-P2 生产 prover、安全参数、NTT 和加速/量化 neural backend 尚未实现。
-- **Completed specifications:** A1/A2/A3 规格保持闭合；A4 已选择 reviewed GPV PFDH 并固定非生产 public profile、proof/message 编码、exact reference relation、A3 adapter，以及 A4-C1 `80->3600->1153->1` point-pulse graph、范围账本和全部 canonical `(y,z)` 上的 `V_nn==V_ref` 证明；V1-P1 普通矩阵方案保留为 baseline，V1-P2 已冻结 reviewed FSwA-S Module-SIS protocol、non-production exact profile/range ledger、polynomial transcript/encoding、M-LWE/M-SIS 安全边界、A3-v2、direct-convolution neural relation，以及 `V1-P2-PSR-E1` toy prover/sampler/rejection 实验契约；V1-M1 已冻结 CIFAR-100/CIFAR-style ResNet-18 experiment route；长期 `V0 -> V1-prep -> V1 -> V2` 路线及独立代码保留约束已同步。
-- **Tests passed:** A0/A1 正负向、全域 differential 和 no-fallback 测试保持通过；V1-P2-PSR-E1 retry focused 58 项通过。V1-C1 focused unit/differential/security/A3-v2 route suite 47 项通过；完整 pytest 595 项通过。
-- **Configured stack:** Python `==3.11.*`（当前 3.11.9）；pytest 9.1.1、Ruff 0.15.22、mypy 2.3.0；官方 torch `2.13.0+cpu`、torchvision `0.28.0+cpu`、NumPy `2.4.4`、Pillow `12.2.0` 已安装核验并记录在 `requirements-ml.lock`。
+- **Completed modules:** A0 parser/reference evidence、A1 exact backends、A2-E1/A2-E2 模型/协调器/实验、A3-v1 默认关闭协议壳、A4 exact/neural relation 与 adapters，以及 V1-P2 non-production public profile/parser/registry、coefficient-domain exact relation、A3-v2 commit-first single-terminal coordinator、exact/neural evidence adapters、`V1-C1-MSIS` graph、`V1-P2-PSR-E1` generated-key/sampler/single-attempt experiment、fresh-transcript retry/exhaustion harness 和 V1-M1 CIFAR model/archive parser/adapter/runner/artifact writer 已实现。V1-P2 生产 prover、安全参数、NTT 和加速/量化 neural backend 尚未实现。
+- **Completed specifications:** A1/A2/A3 规格保持闭合；A4 已选择 reviewed GPV PFDH 并固定非生产 public profile、proof/message 编码、exact reference relation、A3 adapter，以及 A4-C1 `80->3600->1153->1` point-pulse graph、范围账本和全部 canonical `(y,z)` 上的 `V_nn==V_ref` 证明；V1-P1 普通矩阵方案保留为 baseline，V1-P2 已冻结 reviewed FSwA-S Module-SIS protocol、non-production exact profile/range ledger、polynomial transcript/encoding、M-LWE/M-SIS 安全边界、A3-v2、direct-convolution neural relation，以及 `V1-P2-PSR-E1` toy prover/sampler/rejection 实验契约；V1-M1 已冻结 CIFAR-100/CIFAR-style ResNet-18 route、数据供应链/许可边界、fine-label order、split、preprocessing、two-run deterministic training and acceptance protocol；长期 `V0 -> V1-prep -> V1 -> V2` 路线及独立代码保留约束已同步。
+- **Tests passed:** A0/A1 正负向、全域 differential 和 no-fallback 测试保持通过；V1-P2-PSR-E1 retry focused 58 项通过。V1-C1 focused unit/differential/security/A3-v2 route suite 47 项通过；V1-M1 artifact focused unit/security subset 14 项通过；完整 pytest 622 项通过。
+- **Configured stack:** 本机 A1/A2 继续使用 Python `==3.11.*`（3.11.9）、官方 torch `2.13.0+cpu`、torchvision `0.28.0+cpu`、NumPy `2.4.4`、Pillow `12.2.0` 和 `requirements-ml.lock`。V1-M1 另冻结 AutoDL `can-v1`：Python 3.11.9、RTX A4000 16,376 MiB、driver 580.82.07、torch `2.13.0+cu126`、torchvision `0.28.0+cu126`，两个 primary wheel SHA-256 见 V1-M1 决策 section 8；不得将其写回 A2 CPU lock。
 - **Baseline result:** 两次同种子十 epoch运行均得到 test loss `0.33665058851242063`、accuracy `88.08%`、prediction SHA `e5b48d60...e4a7`、state SHA `88062fee...8613` 和 determinism fingerprint `a59a9a9a...7d53`；模型 235,146 parameters/940,584 bytes。本机 batch-1 median 为 110.8/104.9 us，batch-256 median 为 2987.4/2790.8 us。
 - **Gate result:** gate 重训得到同一 `88.08%`、prediction/state SHA；10,000 个 gated labels 全部匹配，accepted/rejected end-to-end median 为 `1849.2/1570.5 us`，verifier-only median `1245.5 us`，accepted coordinator median `85.4 us`，accepted overhead `1750.2 us`/`1767.88%`。10,000 allow 各一次模型调用，rejected probe 与 1,100 次 rejected latency 请求均为零模型调用。
 - **Public baseline result:** 两次固定十 epoch 运行均得到 test loss `0.007989783663357957`、accuracy `99.85%`、prediction SHA `f54b2351...6f0a`、state SHA `b71980eb...122be` 和 fingerprint `e4fbf9c0...c14f`；模型 50,370 parameters/201,480 bytes。两次本机 batch-1 median 为 `70.2/65.9 us`，batch-256 median 为 `1464.0/1340.001 us`。
 - **Capability report result:** accepted-state 评估的 protected/public prediction SHA 分别为 `e5b48d60...e4a7` 与 `f54b2351...6f0a`；10,000 次 public、10,000 次 protected 调用精确互斥，单次拒绝探针和默认关闭探针均为零模型调用。最终复核运行的 public/protected/deny end-to-end median 为 `238.7/1540.9/1324.4 us`。
-- **Known limitations:** A0、A4 与 V1 conformance 均为非安全 toy profile；A1/A2 只支持当前 CPU tuple；A4-C1/V1-C1 只有 dependency-free sparse exact backend，没有生产参数、NTT、PyTorch/qint8/CUDA/export、系统 related-work 检索或白盒保证。V1-P2 sampler/single-attempt/retry 与 V1-C1 只支持 toy reproducibility、compiled arithmetic conformance 和 coordinator state testing，尚无生产 prover、密码安全参数、CIFAR input/model adapter 或协议安全结论。
-- **Documentation/code consistency:** 研究设计、安全文档、V1-P2/PSR/V1-M1 决策、README、治理脚本和本日志已同步 non-production exact/neural/A3-v2、`V1-P2-PSR-E1` generated-key/single-attempt/retry、V1-C1 graph/A3-v2 route 和 CIFAR/ResNet 路线；唯一下一步为 `SERVER_REQUIRED` 的 V1-M1 环境冻结。
+- **Known limitations:** A0、A4 与 V1 conformance 均为非安全 toy profile；A1/A2 只支持当前 CPU tuple；A4-C1/V1-C1 只有 dependency-free sparse exact backend，没有生产参数、NTT、PyTorch/qint8/CUDA/export、系统 related-work 检索或白盒保证。V1-P2 sampler/single-attempt/retry 与 V1-C1 只支持 toy reproducibility、compiled arithmetic conformance 和 coordinator state testing；V1-M1 尚无已下载数据、weights、baseline/gate/性能结果或协议安全结论。
+- **Documentation/code consistency:** 研究设计、安全文档、V1-P2/PSR/V1-M1 决策、README、治理脚本和本日志已同步 non-production exact/neural/A3-v2、`V1-P2-PSR-E1` generated-key/single-attempt/retry、V1-C1 graph/A3-v2 route、CIFAR/ResNet route、已验证 V1 GPU tuple、训练协议、artifact/report writer 和本机 V1-M1 implementation；唯一下一步为 `LOCAL_OK` 的 checkpoint commit 与已授权 `origin/main` 推送。
 - **Security relevance:** A1/A2/A3/A4 既有边界保持不变；V1 测试支持 canonical polynomial encodings、公开 immutable profile、exact negacyclic relation、A3-v2 binding、单次终态 response、abort/expiry、route confusion、内部错误、replay/concurrency 和 pre-commit reject 零 protected calls。公开 fixtures 可直接构造 valid relation，只支持 conformance，不证明私钥持有、M-LWE/M-SIS 安全、主动冒充安全或授权安全。
 
 ## Verified command status
@@ -305,6 +313,11 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 | ML runtime probe | `.venv/bin/python -c 'import importlib.metadata as m, numpy, PIL, torch, torchvision; ...'` | torch `2.13.0+cpu`、torchvision `0.28.0+cpu`、NumPy `2.4.4`、Pillow `12.2.0`；CPU-only ops available |
 | Torch wheel hash | `sha256sum /home/kali/.cache/pip/http-v2/4/3/7/f/7/437f741e1b68cb39af20cff8f6c1b059fa9e16f2465507823eab7667.body` | `6746dbcbeb526eb61330b76b41ff1b4eb848951103a892eeb080dfa2b264667b` |
 | Torchvision wheel hash | `sha256sum /home/kali/.cache/pip/http-v2/0/e/5/4/f/0e54f4303d860a30f153423c1eb75bca4f925a10ab84608719f9b129.body` | `1dad604dfc0177ecebe0891bd9701fe2c62ec3f7819a247be541b3fb6effee99` |
+| V1 GPU inventory (remote, user-provided) | `nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader` | NVIDIA RTX A4000, 16,376 MiB, driver 580.82.07 |
+| V1 host/conda probe (remote, user-provided) | `nvidia-smi \| sed -n '1,4p'; python --version; cat /etc/os-release; free -h; df -h /` | driver CUDA compatibility 13.0; Python 3.11.9 in `can-v1`; Ubuntu 22.04.1 LTS; 6 vCPU; 251 GiB RAM total/227 GiB available; root overlay 30 GiB/18 GiB free |
+| V1 package consistency (remote, user-provided) | `python -m pip check` | `No broken requirements found.` |
+| V1 Torch wheel hash (remote, user-provided) | `sha256sum /root/.cache/pip/http-v2/1/c/b/d/7/1cbd782261bb3ae356a3b815ba1896fc05173a48118ea775d7fde7ce.body` | `0f4e49e334e24b552f694f6315e0676fb3f816fb0f727871b9c6d1f73784cc25` |
+| V1 Torchvision wheel hash (remote, user-provided) | `sha256sum /root/.cache/pip/http-v2/1/9/9/7/3/19973bc26893d997a3dafc41954d9a61e22e077dedeb62ef18686f14.body` | `92f53415dd68e56b6f912441997ab0e78fcd6245b1706ee6e88ce2df917248fa`; archive listing contains `torchvision/` |
 | A2 repeat 1 | `PYTHONHASHSEED=20260723 .venv/bin/python -m can.experiments.a2_baseline --repeat 1` | 通过，test `88.08%`，报告写入 ignored root |
 | A2 repeat 2 | `PYTHONHASHSEED=20260723 .venv/bin/python -m can.experiments.a2_baseline --repeat 2` | 通过，与 repeat 1 的 metrics/predictions/state 相同 |
 | A2 compare | `.venv/bin/python -m can.experiments.a2_baseline --compare` | 通过，fingerprint `a59a9a9ac2797261eb824af564d6fa64a3c3e19fa43886b2349aa48bccaf7d53` |
@@ -389,28 +402,30 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 | 实现 V1-P2 generated-key fixture 与 deterministic vectors | Engineering / cryptography | completed | `V1-P2-PSR-E1` 规格闭合 | 临时 `s` 生成公开 `t`，三个 SHAKE256 sampler、single attempt 与公开 manifest 可复现；51 项 focused tests 覆盖 byte rejection、边界/计数、exact differential 和 lifecycle |
 | 实现 V1-P2 A3-v2 fresh-transcript retry harness | Engineering / protocol security | completed | generated-key/sampler/single-attempt checkpoint 闭合 | 每次 abort 使用新 nonce/transcript/y/u/c，forced abort、first success、expiry、exhaustion、replay/concurrency 和零 protected/verifier calls 通过 |
 | 实现 V1-C1-MSIS neural verifier | Research / verifier | completed | prover/retry 与 exact range ledger 闭合 | `56 -> 11056 -> 17 -> 1` fixed affine/ReLU graph、全 canonical input `V_nn==V_ref`、独立 differential/no-fallback 和 A3-v2 route-level zero-call 通过 |
-| 冻结 V1-M1 GPU 服务器训练环境 | Engineering / model experiment | pending | V1-P2 prover/retry 与 V1-C1-MSIS 闭合；触发 `SERVER_REQUIRED` 并先通知项目负责人 | 固定 GPU、driver/CUDA、PyTorch wheel/hash、batch/epoch/determinism；首次正式训练前验收 |
-| 实现 V1 CIFAR-100/ResNet-18 baseline 与认证门控实验 | Engineering / model experiment | pending | V1-M1 GPU 服务器训练环境已冻结 | 两次可复现 baseline、accepted artifact、allow prediction equivalence、reject zero calls 和认证/模型 latency 报告通过 |
+| 冻结 V1-M1 GPU、数据与训练协议 | Engineering / model experiment | completed | 已触发 `SERVER_REQUIRED`、通知项目负责人并完成 A4000/CUDA/wheel/hash/determinism smoke；随后完成 `LOCAL_OK` data/training protocol | 仅冻结官方 source/hash、许可边界、split、preprocessing、two-run SGD/cosine protocol、validation-only checkpoint rule 和预注册 acceptance threshold；未下载或训练 |
+| 实现 V1-M1 isolated model/archive parser/adapter/baseline runner | Engineering / model experiment | completed | V1-M1 data/training protocol 已冻结 | CIFAR-style ResNet-18、verified archive-to-extraction parser、fixed split/preprocessing/training selection、raw-input adapter 和 A3-v2 route isolation；25 项 focused tests 通过且未下载或训练 |
+| 实现 V1-M1 ignored artifact/report writer | Engineering / model experiment | completed | isolated baseline runner 已完成 | 保存选定 state、结构化 manifest/report，拒绝覆盖和 symlink；14 项 focused artifact/route tests 通过且未下载或训练 |
+| 同步 V1-M1 checkpoint 到 `origin/main` | Engineering / publication | in_progress | writer、文档和完整质量检查闭合，项目负责人明确授权直推 | 展示准确候选文件、提交并推送不含数据、weights 或 artifacts 的 commit |
+| 执行 V1 CIFAR-100/ResNet-18 baseline 与认证门控实验 | Engineering / model experiment | pending | V1-M1 environment、data/training protocol、isolated implementation 和 artifact/report writer 闭合 | 两次可复现 baseline、accepted artifact、allow prediction equivalence、reject zero calls 和认证/模型 latency 报告通过 |
 | 建立 V2 ML-DSA 标准 reference 基线 | Research / cryptography | pending | V1 exact/neural/authentication 闭合 | 标准测试向量与规范 parser/reference 通过；不要求首版神经化全部 hash/encoding |
 | 绑定 V2 CIFAR-100/ResNet-18 对照实验 | Engineering / model experiment | pending | V2 ML-DSA reference 与独立 V2 adapter 闭合 | 复用同一业务 benchmark 但保持 V2-local registry/adapter/入口，V1/V2 route confusion 和无 fallback 测试通过 |
 | 设计阶段 B capability 网关 | Research / authorization | pending | V1 阶段验收；V2 不是前置依赖 | 工具参数绑定和不可绕过测试通过 |
 
 # 6. Current next step
 
-**计算资源：`SERVER_REQUIRED`。V1-C1 已闭合，唯一下一步为冻结 V1-M1 GPU 服务器训练环境；项目负责人
-已获通知。在冻结 GPU、driver/CUDA、PyTorch wheel/hash 和训练确定性策略前，不下载 CIFAR-100、不安装
-正式服务器环境、不运行正式训练或产生论文训练结果。**
+**计算资源：`LOCAL_OK`。V1-M1 的 GPU/software tuple、archive identity、数据/训练 protocol、isolated
+implementation 和 artifact/report writer 已冻结。当前只形成并同步源码 checkpoint，不下载数据、不训练、不
+生成真实 V1-M1 artifact；完成后首次正式 archive 下载和两次训练恢复为 `SERVER_REQUIRED`。**
 
-**唯一下一步：在服务器冻结 V1-M1 GPU/software tuple：记录准确 GPU、VRAM/RAM、driver/CUDA、OS、
-Python、PyTorch/torchvision wheel 与 SHA-256、deterministic policy、batch/epoch 和环境安装命令；完成
-可复现性 smoke check 后才冻结 CIFAR-100 source/digest/license、split、preprocessing 与预注册 baseline
-阈值。此步骤为 `SERVER_REQUIRED`；不得修改 V0/A0、V1-P1、A3-v1、A4-C1 或 V1-C1，不得开始正式
-CIFAR-100 训练、Fiat--Shamir、ML-DSA 或 Stage B。**
+**唯一下一步：展示 V1-M1 checkpoint 的准确候选文件，形成 commit 并按项目负责人明确授权直接推送
+`origin/main`。推送内容只能是 source/test/configuration/documentation，必须排除 CIFAR data、weights、
+state、manifest、report、secret 和其他 generated artifact。推送成功后，将唯一下一步改回 `SERVER_REQUIRED`
+的服务器 archive 下载和两次固定 baseline。**
 
 # 7. Blockers and residual risks
 
 - **Git publication status:** 本地 `main` 已初始化，且 `origin` 已指向 `https://github.com/cyd56-ops/CAN.git`。远端 `git ls-remote --heads` 返回空，表示未发现既有分支；初始提交 `bdca23417a7b9382051463ffff80a6659c7ca339` 已创建。`git push -u origin main` 因无交互 GitHub HTTPS 凭据而失败（`could not read Username`）；本机没有 credential helper、GitHub CLI 或可用 SSH agent。远端尚未写入。提交前的敏感模式扫描未发现常见 private key、GitHub token 或 AWS access key 模式。
-- **V1-M1 server availability:** 2026-08-12 的本机只读探测表明当前 WSL2 主机未暴露可用 GPU：`nvidia-smi` 不存在，PCI 仅显示 `Microsoft Corporation Basic Render Driver`，`.venv` 中的 `torch=2.13.0+cpu`、`torchvision=0.28.0+cpu`、`torch.cuda.is_available()=False`、CUDA device count 为 `0`。仓库中也不存在服务器端点、连接配置或 V1-M1 远程 probe 工具。因此尚不能冻结实际 GPU/software tuple 或执行 GPU smoke check；未下载数据、未安装服务器依赖、未开始训练。仍需由项目负责人提供已授权的服务器访问环境后继续。
+- **V1-M1 experiment status:** 2026-08-15 已在项目负责人提供的已授权 AutoDL 单 GPU 容器完成 A4000/CUDA/wheel/hash 与 deterministic smoke；CIFAR-100 official archive/source/hash、许可边界、训练/验证切分、预处理、超参数、阈值与两次完整训练协议已冻结，详见 `docs/V1_MODEL_EXPERIMENT_DECISION.md` sections 4, 7--10。V1-M1 local implementation 已完成并验证 archive/extraction binding、ResNet-18、input adapter、A3-v2 route isolation 和 runner selection；数据仍未下载、未安装预训练权重、未开始正式训练或性能测量。
 - **Artifact lifecycle:** D-024 重新物化的两个 `state_dict`、manifest 和 `capability.json` 只位于
   ignored `artifacts/a2/`；它们不得提交、上传或进入发布包。任何删除后的再次生成都必须重跑固定
   materializer、摘要校验和 no-training evaluator。
@@ -2068,3 +2083,118 @@ CIFAR-100 训练、Fiat--Shamir、ML-DSA 或 Stage B。**
   implementation conformance，不证明 key secrecy、M-LWE/M-SIS security、HVZK、主动冒充安全或
   不可伪造性。下一 checkpoint 必须用全新 A3-v2 transcript 实现 retry/exhaustion，不能让 abort 后的
   commitment、challenge、mask、nonce 或 transcript 复用；之后才进入 `V1-C1-MSIS`。
+
+## D-038 - Freeze the V1-M1 GPU software tuple and defer the data/training protocol
+
+- **Date:** 2026-08-15
+- **Decision:** 接受项目负责人在已授权 AutoDL 单 GPU 容器中完成的 V1-M1 GPU/software tuple：Ubuntu
+  22.04.1、`can-v1` CPython 3.11.9、NVIDIA RTX A4000 16,376 MiB、driver 580.82.07、PyTorch
+  `2.13.0+cu126` 和 torchvision `0.28.0+cu126`。两个 primary wheel 的 SHA-256、CUDA runtime、
+  环境安装/激活命令、CUDA forward/backward smoke 和同进程 deterministic smoke 记录在
+  `docs/V1_MODEL_EXPERIMENT_DECISION.md` section 8。A2 CPU lock 不随此决定修改。
+- **Reason:** V1-M1 已进入 `SERVER_REQUIRED` 并完成通知；实际 probe 显示该 environment 可运行 CUDA
+  PyTorch，且 `pip check` 无依赖断裂。将 driver compatibility CUDA 13.0 与 wheel runtime CUDA 12.6
+  分开记录，避免将 `nvidia-smi` 的兼容性读数误当为训练 runtime。以两个 wheel 的哈希锁定 primary
+  binary provenance，同时不把随机 micro-smoke 夸大为训练或性能结论。
+- **Alternatives:** 继续把 V1 假定为 CPU-only；立即下载/训练再回填数据或超参数；把 GPU wheel 写入
+  A2 CPU lock；由 `nvidia-smi` 的 13.0 读数替代 torch CUDA runtime。前三者分别失去已验证资源、允许
+  post-hoc protocol 选择或破坏既有 A2 可复现性，最后一项混淆 driver 与 wheel runtime，均不采用。
+- **Consequences:** GPU/software 子步骤完成，但 V1-M1 仍为 in-progress：CIFAR-100 source/digest/license、
+  split、preprocessing、batch/data-loader、optimizer/scheduler、epochs、checkpoint rule、seeds 和
+  baseline threshold 必须先作为一个 `LOCAL_OK` 决策冻结。此前不下载数据、不安装预训练权重、不训练、
+  不产生论文准确率或吞吐量结论；首次正式训练重新标记 `SERVER_REQUIRED` 并只使用此 tuple。
+- **Verification:** `bash -n scripts/check_governance_docs.sh`、`./scripts/check_governance_docs.sh` 和
+  `git diff --check` 于本 checkpoint 通过。提交候选仅为 `PROJECT_WORKLOG.md`、
+  `docs/V1_MODEL_EXPERIMENT_DECISION.md` 和 `README.md`；未修改 runtime、依赖锁、数据或模型代码。
+
+## D-039 - Record the V1 AutoDL environment restart and migration procedure
+
+- **Date:** 2026-08-15
+- **Decision:** 新增 `docs/V1_AUTODL_ENVIRONMENT_SETUP.md`，作为已冻结 V1-M1 AutoDL A4000 tuple 的
+  操作手册。它规定同一实例重启只做 environment verification；任何换服、释放后重建、系统重置或弹性
+  部署切换均按全新 environment 重建，重新记录 hardware/software provenance 并比较 primary wheel
+  SHA-256。
+- **Reason:** `/root` 的 Conda environment 可在同一实例关机重开后保存，但它不是可迁移 artifact；将
+  这两种情形分开可避免把不同 GPU/driver/runtime 的运行误当作一次已冻结实验的直接复现。
+- **Consequences:** 当前唯一下一步仍是 `LOCAL_OK` 的 CIFAR-100 数据与训练协议冻结。该手册不下载数据、
+  不安装预训练权重、不启动训练，也不修改 A2 CPU lock 或 runtime code。
+- **Verification:** `bash -n scripts/check_governance_docs.sh`、`./scripts/check_governance_docs.sh` 和
+  `git diff --check` 通过。当前提交候选为 `PROJECT_WORKLOG.md`、`README.md`、
+  `docs/V1_MODEL_EXPERIMENT_DECISION.md` 和 `docs/V1_AUTODL_ENVIRONMENT_SETUP.md`。
+
+## D-040 - Freeze the V1-M1 CIFAR-100 data and training protocol
+
+- **Date:** 2026-08-15
+- **Decision:** 固定首方 CIFAR-100 Python archive URL、`169001437` byte size、SHA-256
+  `85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7`、首方 MD5、许可证未声明时的
+  no-redistribution boundary、100 个 fine-label order、`45,000/5,000/10,000` train/validation/test split、
+  trusted preprocessing、train-only crop/flip、two-run seeds `1729/1730`、batch/data-loader policy、200 epoch
+  SGD/cosine training、validation-only checkpoint rule 以及 `70.00%`/`2.00 pp` baseline acceptance rules。
+  完整值与下载后的 decoded-digest 算法见 `docs/V1_MODEL_EXPERIMENT_DECISION.md` sections 4, 7, 9 and 10。
+- **Reason:** 在下载前预注册数据身份、切分、模型输入语义和所有优化选择，使 test split 不会驱动
+  checkpoint、超参数、重试或 acceptance threshold。首方页面只公布 archive、大小、MD5 和 citation；
+  SHA-256/byte size 由 Hugging Face Datasets 对相同 URL 的 source record 交叉记录。未找到首方许可证或
+  redistribution grant，故不能把可下载性误称为发布授权。
+- **Alternatives:** 使用非首方镜像作为下载入口；以 test accuracy 选择 checkpoint/seed；下载后再选择
+  augment、batch、epochs 或 acceptance threshold；把 archive、图像或 weights 放进仓库。它们分别破坏
+  source provenance、引入 test leakage 或 post-hoc selection、损害可复现性，或违反 artifact/许可边界，
+  均不采用。
+- **Consequences:** V1-M1 GPU、data 与 training protocol 已闭合，但不产生任何模型、数据或实验结果。
+  当前唯一下一步转为 `LOCAL_OK` 的 isolated V1-M1 implementation 与 unit/security tests；该步骤不得下载
+  CIFAR-100。implementation 完成后，首次 archive 下载或两次 baseline training 必须先改为
+  `SERVER_REQUIRED`、通知项目负责人，并仅使用已冻结 AutoDL A4000 tuple。V0/A0、V1-P1、A3-v1、
+  A4-C1、V1-C1、Fiat--Shamir、ML-DSA 与 Stage B 不在本 checkpoint 范围内。
+- **Verification:** `bash -n scripts/check_governance_docs.sh`、`./scripts/check_governance_docs.sh` 和
+  `git diff --check` 已于本 checkpoint 的文档修改后通过；未运行任何 download、training、GPU benchmark 或
+  dataset parser。提交候选为 `PROJECT_WORKLOG.md`、`README.md`、
+  `docs/V1_MODEL_EXPERIMENT_DECISION.md` 和 `docs/V1_AUTODL_ENVIRONMENT_SETUP.md`。
+
+## D-041 - Implement the local V1-M1 isolated baseline boundary
+
+- **Date:** 2026-08-15
+- **Decision:** 新增独立 V1-M1 CIFAR-style ResNet-18（11,220,132 parameters）、严格 raw uint8
+  adapter/`V1M1AccessCoordinator`、仅接受已经存在并通过固定 size/SHA-256/MD5 校验 archive 的
+  CIFAR-100 parser，以及固定 split、augmentation、SGD/cosine、validation-only model selection 的
+  CUDA baseline runner。parser 在读取 pickle 前验证解压的 `train`、`test`、`meta` 与 archive 成员逐字节
+  对应，并拒绝未知字段。runner 不下载、解压、写 artifact 或由本机调用。
+- **Reason:** 使冻结的 V1-M1 protocol 在数据或 GPU 结果产生前具有可审查的实现边界；将不可信 raw
+  image 规范化、A3-v2 evidence-only authorization 和模型调用保持为独立 V1 route，同时防止手工更改的
+  解压文件绕过 archive identity。
+- **Alternatives:** 复用 A2 Fashion-MNIST model/parser；让调用方提交 `A3V2TrustedInput`；在 unit test
+  中下载 CIFAR-100；先用 CPU 运行 200 epochs；忽略 archive 与 extracted tree 的对应关系。它们分别破坏
+  route isolation、trusted-input ownership、资源边界、正式训练协议或数据供应链绑定，均不采用。
+- **Consequences:** isolated implementation 已完成；没有 archive、解压数据、weights、checkpoint、正式
+  accuracy、prediction digest、吞吐量或 latency 结果。唯一下一步变为 `SERVER_REQUIRED` 的首次 archive
+  下载与两次训练；该服务器 run 还必须实现 ignored artifact/report persistence，并在 baseline 验收后才进入
+  gate 与性能报告。
+- **Verification:** V1-M1 focused unit/security suite `25 passed`；`.venv/bin/python -m pytest` 收集并
+  通过 620 项；`.venv/bin/ruff check .`、`.venv/bin/ruff format --check .`、`.venv/bin/mypy src tests` 与
+  `.venv/bin/python -m pip check` 通过；`bash -n scripts/check_governance_docs.sh`、
+  `./scripts/check_governance_docs.sh` 和 `git diff --check` 通过。提交候选为
+  `PROJECT_WORKLOG.md`、`README.md`、`docs/V1_MODEL_EXPERIMENT_DECISION.md`、
+  `docs/V1_AUTODL_ENVIRONMENT_SETUP.md`、`src/can/access/__init__.py`、
+  `src/can/access/v1_m1_adapter.py`、`src/can/experiments/v1_m1_baseline.py`、
+  `src/can/model/__init__.py`、`src/can/model/v1_cifar100_resnet.py`、
+  `tests/security/test_v1_m1_route_security.py`、`tests/unit/test_v1_cifar100_resnet.py`、
+  `tests/unit/test_v1_m1_adapter.py` 和 `tests/unit/test_v1_m1_baseline.py`。
+
+## D-042 - Close the V1-M1 artifact writer before server execution
+
+- **Date:** 2026-08-15
+- **Decision:** `run_v1_m1_baseline` 现在在 validation-only selection 和单次 test 后，将选定 CPU
+  `state_dict`、`manifest.json` 和 `report.json` 原子写入 ignored `artifacts/v1-m1/run-{1,2}/`。路径
+  预检、创建和文件写入均拒绝覆盖及 symlink；state 文件只保存 tensor state，不保存 optimizer state，
+  report/manifest 只保存公开数据、训练、模型、环境和摘要信息。项目负责人同时更新仓库规则：默认仍不推送，
+  但有明确授权时可直接推送当前 `main`，只有明确要求备份时才使用 `backup/<current-branch>`。
+- **Reason:** 两次服务器训练必须留下可审计且可供后续 gate 物化的 selected state，不能只返回临时内存
+  结果；明确授权的 main push 使服务器能检出同一源码 checkpoint，而不把数据或权重传入 Git。
+- **Alternatives:** 服务器临时手工序列化模型；总是创建 backup branch；在测试中生成真实 CIFAR artifact；
+  覆盖同一 run 的既有结果。它们分别削弱可复现接口、违背项目负责人当前发布策略、越过资源边界或破坏
+  artifact provenance，均不采用。
+- **Consequences:** 当前唯一下一步是 `LOCAL_OK` 的 commit 和授权直推 `origin/main`；成功后恢复为
+  `SERVER_REQUIRED` 的正式 CIFAR-100 下载与两次 baseline。没有下载数据、没有训练、没有生成真实 state、
+  manifest、report 或模型结果。
+- **Verification:** V1-M1 artifact focused unit/security subset `14 passed`；完整 `.venv/bin/python -m pytest`
+  收集并通过 622 项；`.venv/bin/ruff check .`、`.venv/bin/ruff format --check .`、
+  `.venv/bin/mypy src tests` 和 `.venv/bin/python -m pip check` 通过。治理文档检查、最终候选清单、commit 和
+  push 结果在本条之后复核。

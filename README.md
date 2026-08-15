@@ -44,8 +44,10 @@ PyTorch/qint8/CUDA/export 和性能结论仍未实现。
 是 A3 请求绑定/新鲜性和 A4 canonical `(y,z)` 神经代数内核；V1-P2 已完成 reviewed Module-SIS
 challenge-response/身份协议选择和非生产 exact/A3-v2 conformance 协议壳，并已实现独立
 generated-key/sampler/single-attempt/retry 实验边界及 `V1-C1-MSIS` coefficient-domain neural
-construction。下一步先在服务器冻结 V1-M1 GPU/software tuple，之后才开始 CIFAR-100/ResNet-18
-baseline。V2 才研究 ML-DSA 标准 verifier。V0、V1 和 V2 必须作为独立
+construction。V1-M1 的 AutoDL A4000 GPU/software tuple 以及 CIFAR-100 的权威来源、摘要、许可边界、
+数据切分、预处理、训练超参数和预注册阈值均已冻结；独立 V1-M1 model/archive parser/adapter/runner、
+ignored state/manifest/report writer 与 unit/security tests 已在本机实现且未下载数据。下一步的首次正式数据下载
+和 CIFAR-100/ResNet-18 baseline 为 `SERVER_REQUIRED`，只能在已冻结的 AutoDL A4000 环境执行。V2 才研究 ML-DSA 标准 verifier。V0、V1 和 V2 必须作为独立
 可复现代码路线共存，后续路线不得
 重命名、改写或覆盖前序路线。V1-prep 不提供身份认证，V2 不属于首篇论文 MVP。
 
@@ -67,6 +69,7 @@ baseline。V2 才研究 ML-DSA 标准 verifier。V0、V1 和 V2 必须作为独�
 - `docs/V1_PROVER_SAMPLER_REJECTION_SPEC.md`：V1-P2 非生产 prover/sampler/rejection 的 toy domain、
   deterministic seed、bounded-uniform emit/abort、fresh retry、测试向量和安全主张边界；
 - `docs/V1_MODEL_EXPERIMENT_DECISION.md`：V1 CIFAR-100/CIFAR-style ResNet-18 输入、模型和实验边界；
+- `docs/V1_AUTODL_ENVIRONMENT_SETUP.md`：V1 AutoDL GPU environment 的同实例重启验证与换服重建手册；
 - `SECURITY.md`：信任模型、安全边界和明确不保证的性质；
 - `PROJECT_WORKLOG.md`：当前状态、任务和唯一下一步；
 - `src/can/reference/`：A0-v1 oracle、A4 public relation，以及 V1-P2 公开 profile/parser/系数域 exact relation；
