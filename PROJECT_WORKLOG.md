@@ -264,14 +264,15 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 # 3. Current state
 
 - **Current branch:** `main`；2026-08-12 已在 `/home/kali/CAN` 初始化本地 Git repository，并配置 `origin` 为 `https://github.com/cyd56-ops/CAN.git`。
-- **Full HEAD commit:** `ae79db187450cff0272458333c1883ef7aefcccc`（`Record GitHub publication authentication status`）。
-- **Worktree state:** 唯一 worktree 为 `/home/kali/CAN`；当前修改/新增的 checkpoint 文件列于 D-042，
+- **Last published source checkpoint:** `c6c38df`（`Implement V1-M1 artifacts and training boundary`）已推送至
+  `origin/main`。
+- **Worktree state:** 唯一 worktree 为 `/home/kali/CAN`；当前发布记录的后续文档修改列于 D-043，
   其余工作树状态由最终 `git status --short` 复核。`.gitignore` 排除了 `.venv/`、`data/`、`artifacts/`、
   checkpoints、模型权重和 `paper/*.pdf`。当前 `main` 尚未跟踪远端分支，等待 GitHub 认证后推送。
-- **Compute resource:** `LOCAL_OK`。已授权的 AutoDL A4000 环境已完成 V1-M1 GPU/software tuple
+- **Compute resource:** `SERVER_REQUIRED`。已授权的 AutoDL A4000 环境已完成 V1-M1 GPU/software tuple
   冻结和 CUDA smoke；CIFAR-100 archive/source/hash、许可边界、切分、preprocessing、training protocol、
-  acceptance threshold、isolated implementation 与 artifact/report writer 已闭合。当前只形成并同步代码
-  checkpoint；首次正式 archive 下载或两次训练仍必须只在已记录的 A4000 tuple 上执行。
+  acceptance threshold、isolated implementation 与 artifact/report writer 已闭合。首次正式 archive 下载或
+  两次训练必须只在已记录的 A4000 tuple 上执行；本机不能下载、训练或产生正式 V1-M1 结果。
 - **Filesystem state:** 当前包含治理/研究/安全与 A0--A4/V1 协议、规格和构造决定文档、Python 项目及开发/ML 依赖锁、A0/A4/V1 exact reference、A1 两个 verifier backends、A4-C1/V1-C1 dependency-free verifiers、A2-E1/A2-E2 模型与协调器、A3-v1/A3-v2 state/coordinator、A4/V1 exact/neural evidence adapters、单元/差分/集成/安全测试和治理检查脚本；ignored `data/a2/` 与 `artifacts/a2/` 保存数据、local states、manifest、license 和报告，`paper/` 保存两份 ignored PDF；`.git` 现为本地 Git metadata，`.agents` 与 `.codex` 目录仍为空。
 - **Completed modules:** A0 parser/reference evidence、A1 exact backends、A2-E1/A2-E2 模型/协调器/实验、A3-v1 默认关闭协议壳、A4 exact/neural relation 与 adapters，以及 V1-P2 non-production public profile/parser/registry、coefficient-domain exact relation、A3-v2 commit-first single-terminal coordinator、exact/neural evidence adapters、`V1-C1-MSIS` graph、`V1-P2-PSR-E1` generated-key/sampler/single-attempt experiment、fresh-transcript retry/exhaustion harness 和 V1-M1 CIFAR model/archive parser/adapter/runner/artifact writer 已实现。V1-P2 生产 prover、安全参数、NTT 和加速/量化 neural backend 尚未实现。
 - **Completed specifications:** A1/A2/A3 规格保持闭合；A4 已选择 reviewed GPV PFDH 并固定非生产 public profile、proof/message 编码、exact reference relation、A3 adapter，以及 A4-C1 `80->3600->1153->1` point-pulse graph、范围账本和全部 canonical `(y,z)` 上的 `V_nn==V_ref` 证明；V1-P1 普通矩阵方案保留为 baseline，V1-P2 已冻结 reviewed FSwA-S Module-SIS protocol、non-production exact profile/range ledger、polynomial transcript/encoding、M-LWE/M-SIS 安全边界、A3-v2、direct-convolution neural relation，以及 `V1-P2-PSR-E1` toy prover/sampler/rejection 实验契约；V1-M1 已冻结 CIFAR-100/CIFAR-style ResNet-18 route、数据供应链/许可边界、fine-label order、split、preprocessing、two-run deterministic training and acceptance protocol；长期 `V0 -> V1-prep -> V1 -> V2` 路线及独立代码保留约束已同步。
@@ -282,7 +283,7 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 - **Public baseline result:** 两次固定十 epoch 运行均得到 test loss `0.007989783663357957`、accuracy `99.85%`、prediction SHA `f54b2351...6f0a`、state SHA `b71980eb...122be` 和 fingerprint `e4fbf9c0...c14f`；模型 50,370 parameters/201,480 bytes。两次本机 batch-1 median 为 `70.2/65.9 us`，batch-256 median 为 `1464.0/1340.001 us`。
 - **Capability report result:** accepted-state 评估的 protected/public prediction SHA 分别为 `e5b48d60...e4a7` 与 `f54b2351...6f0a`；10,000 次 public、10,000 次 protected 调用精确互斥，单次拒绝探针和默认关闭探针均为零模型调用。最终复核运行的 public/protected/deny end-to-end median 为 `238.7/1540.9/1324.4 us`。
 - **Known limitations:** A0、A4 与 V1 conformance 均为非安全 toy profile；A1/A2 只支持当前 CPU tuple；A4-C1/V1-C1 只有 dependency-free sparse exact backend，没有生产参数、NTT、PyTorch/qint8/CUDA/export、系统 related-work 检索或白盒保证。V1-P2 sampler/single-attempt/retry 与 V1-C1 只支持 toy reproducibility、compiled arithmetic conformance 和 coordinator state testing；V1-M1 尚无已下载数据、weights、baseline/gate/性能结果或协议安全结论。
-- **Documentation/code consistency:** 研究设计、安全文档、V1-P2/PSR/V1-M1 决策、README、治理脚本和本日志已同步 non-production exact/neural/A3-v2、`V1-P2-PSR-E1` generated-key/single-attempt/retry、V1-C1 graph/A3-v2 route、CIFAR/ResNet route、已验证 V1 GPU tuple、训练协议、artifact/report writer 和本机 V1-M1 implementation；唯一下一步为 `LOCAL_OK` 的 checkpoint commit 与已授权 `origin/main` 推送。
+- **Documentation/code consistency:** 研究设计、安全文档、V1-P2/PSR/V1-M1 决策、README、治理脚本和本日志已同步 non-production exact/neural/A3-v2、`V1-P2-PSR-E1` generated-key/single-attempt/retry、V1-C1 graph/A3-v2 route、CIFAR/ResNet route、已验证 V1 GPU tuple、训练协议、artifact/report writer 和本机 V1-M1 implementation；`c6c38df` 已同步至 `origin/main`，唯一下一步为 `SERVER_REQUIRED` 的正式 archive 下载和两次 baseline。
 - **Security relevance:** A1/A2/A3/A4 既有边界保持不变；V1 测试支持 canonical polynomial encodings、公开 immutable profile、exact negacyclic relation、A3-v2 binding、单次终态 response、abort/expiry、route confusion、内部错误、replay/concurrency 和 pre-commit reject 零 protected calls。公开 fixtures 可直接构造 valid relation，只支持 conformance，不证明私钥持有、M-LWE/M-SIS 安全、主动冒充安全或授权安全。
 
 ## Verified command status
@@ -405,7 +406,7 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 | 冻结 V1-M1 GPU、数据与训练协议 | Engineering / model experiment | completed | 已触发 `SERVER_REQUIRED`、通知项目负责人并完成 A4000/CUDA/wheel/hash/determinism smoke；随后完成 `LOCAL_OK` data/training protocol | 仅冻结官方 source/hash、许可边界、split、preprocessing、two-run SGD/cosine protocol、validation-only checkpoint rule 和预注册 acceptance threshold；未下载或训练 |
 | 实现 V1-M1 isolated model/archive parser/adapter/baseline runner | Engineering / model experiment | completed | V1-M1 data/training protocol 已冻结 | CIFAR-style ResNet-18、verified archive-to-extraction parser、fixed split/preprocessing/training selection、raw-input adapter 和 A3-v2 route isolation；25 项 focused tests 通过且未下载或训练 |
 | 实现 V1-M1 ignored artifact/report writer | Engineering / model experiment | completed | isolated baseline runner 已完成 | 保存选定 state、结构化 manifest/report，拒绝覆盖和 symlink；14 项 focused artifact/route tests 通过且未下载或训练 |
-| 同步 V1-M1 checkpoint 到 `origin/main` | Engineering / publication | in_progress | writer、文档和完整质量检查闭合，项目负责人明确授权直推 | 展示准确候选文件、提交并推送不含数据、weights 或 artifacts 的 commit |
+| 同步 V1-M1 checkpoint 到 `origin/main` | Engineering / publication | completed | writer、文档和完整质量检查闭合，项目负责人明确授权直推 | `c6c38df` 已由 `main` 直推，内容不含数据、weights 或 artifacts |
 | 执行 V1 CIFAR-100/ResNet-18 baseline 与认证门控实验 | Engineering / model experiment | pending | V1-M1 environment、data/training protocol、isolated implementation 和 artifact/report writer 闭合 | 两次可复现 baseline、accepted artifact、allow prediction equivalence、reject zero calls 和认证/模型 latency 报告通过 |
 | 建立 V2 ML-DSA 标准 reference 基线 | Research / cryptography | pending | V1 exact/neural/authentication 闭合 | 标准测试向量与规范 parser/reference 通过；不要求首版神经化全部 hash/encoding |
 | 绑定 V2 CIFAR-100/ResNet-18 对照实验 | Engineering / model experiment | pending | V2 ML-DSA reference 与独立 V2 adapter 闭合 | 复用同一业务 benchmark 但保持 V2-local registry/adapter/入口，V1/V2 route confusion 和无 fallback 测试通过 |
@@ -413,18 +414,22 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 
 # 6. Current next step
 
-**计算资源：`LOCAL_OK`。V1-M1 的 GPU/software tuple、archive identity、数据/训练 protocol、isolated
-implementation 和 artifact/report writer 已冻结。当前只形成并同步源码 checkpoint，不下载数据、不训练、不
-生成真实 V1-M1 artifact；完成后首次正式 archive 下载和两次训练恢复为 `SERVER_REQUIRED`。**
+**计算资源：`SERVER_REQUIRED`。V1-M1 的 GPU/software tuple、archive identity、数据/训练 protocol、
+isolated implementation、artifact/report writer 和可供服务器检出的 `origin/main` checkpoint 已冻结。
+本机不得下载 CIFAR-100、训练或生成真实 V1-M1 artifact。**
 
-**唯一下一步：展示 V1-M1 checkpoint 的准确候选文件，形成 commit 并按项目负责人明确授权直接推送
-`origin/main`。推送内容只能是 source/test/configuration/documentation，必须排除 CIFAR data、weights、
-state、manifest、report、secret 和其他 generated artifact。推送成功后，将唯一下一步改回 `SERVER_REQUIRED`
-的服务器 archive 下载和两次固定 baseline。**
+**唯一下一步：在已冻结的 AutoDL A4000 环境执行 V1-M1 正式 baseline 准备和两次运行：从唯一首方 URL
+下载 CIFAR-100 archive，按固定 size/SHA-256/MD5 验证并显式解压；随后以 seed `1729`、`1730` 运行固定
+200-epoch baseline，保存 ignored state/manifest/report，按 validation-only rule 选择模型并评估一次 test。
+执行前不得改变数据、split、预处理、超参数或阈值；本机不得下载或训练，也不得进入 gate、性能、V2、
+Fiat--Shamir、ML-DSA 或 Stage B。**
 
 # 7. Blockers and residual risks
 
-- **Git publication status:** 本地 `main` 已初始化，且 `origin` 已指向 `https://github.com/cyd56-ops/CAN.git`。远端 `git ls-remote --heads` 返回空，表示未发现既有分支；初始提交 `bdca23417a7b9382051463ffff80a6659c7ca339` 已创建。`git push -u origin main` 因无交互 GitHub HTTPS 凭据而失败（`could not read Username`）；本机没有 credential helper、GitHub CLI 或可用 SSH agent。远端尚未写入。提交前的敏感模式扫描未发现常见 private key、GitHub token 或 AWS access key 模式。
+- **Git publication status:** `origin` 已使用 SSH URL `git@github.com:cyd56-ops/CAN.git`；项目负责人明确授权直推
+  `main` 后，`git push -u origin main` 成功将 `ae79db1..c6c38df` 推送至远端，并建立
+  `main -> origin/main` upstream。推送内容经 staged diff 检查与敏感模式扫描，不含数据、weights、artifact、
+  private key、GitHub token 或 AWS access key。
 - **V1-M1 experiment status:** 2026-08-15 已在项目负责人提供的已授权 AutoDL 单 GPU 容器完成 A4000/CUDA/wheel/hash 与 deterministic smoke；CIFAR-100 official archive/source/hash、许可边界、训练/验证切分、预处理、超参数、阈值与两次完整训练协议已冻结，详见 `docs/V1_MODEL_EXPERIMENT_DECISION.md` sections 4, 7--10。V1-M1 local implementation 已完成并验证 archive/extraction binding、ResNet-18、input adapter、A3-v2 route isolation 和 runner selection；数据仍未下载、未安装预训练权重、未开始正式训练或性能测量。
 - **Artifact lifecycle:** D-024 重新物化的两个 `state_dict`、manifest 和 `capability.json` 只位于
   ignored `artifacts/a2/`；它们不得提交、上传或进入发布包。任何删除后的再次生成都必须重跑固定
@@ -2198,3 +2203,18 @@ state、manifest、report、secret 和其他 generated artifact。推送成功�
   收集并通过 622 项；`.venv/bin/ruff check .`、`.venv/bin/ruff format --check .`、
   `.venv/bin/mypy src tests` 和 `.venv/bin/python -m pip check` 通过。治理文档检查、最终候选清单、commit 和
   push 结果在本条之后复核。
+
+## D-043 - Publish the V1-M1 source checkpoint on main
+
+- **Date:** 2026-08-15
+- **Decision:** 按项目负责人明确授权，不创建 `backup/main`，将 `c6c38df`（`Implement V1-M1 artifacts and
+  training boundary`）直接推送到 `origin/main`，并将本地分支设置为跟踪 `origin/main`。项目规则同时改为：
+  默认不推送；有负责人明确授权的 checkpoint 可直推当前 `main`；只有明确要求备份时才使用
+  `backup/<current-branch>`。
+- **Reason:** 服务器必须检出与本机测试相同的 source/test/configuration/documentation checkpoint；单独
+  backup 分支既非项目负责人当前要求，也不能替代服务器所需的 `main` commit。
+- **Consequences:** 服务器现在可检出 `c6c38df`；远端不含 CIFAR data、weights、state、manifest、report、
+  secret 或其他 generated artifact。唯一下一步已重新标为 `SERVER_REQUIRED` 的正式数据准备与两次训练。
+- **Verification:** `git push -u origin main` 输出 `ae79db1..c6c38df  main -> main`，并确认 upstream 为
+  `origin/main`。本条发布记录将在单独的 documentation commit 中推送；除 `PROJECT_WORKLOG.md` 外不新增
+  发布内容。
