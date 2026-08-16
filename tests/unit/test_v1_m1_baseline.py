@@ -21,7 +21,9 @@ from can.experiments.v1_m1_baseline import (
     _artifact_paths,
     _build_v1_m1_split_indices,
     _decode_meta,
+    _format_v1_m1_batch_progress,
     _format_v1_m1_epoch_progress,
+    _V1M1ProgressReporter,
     _write_v1_m1_artifacts,
     build_v1_m1_baseline_plan,
     run_v1_m1_baseline,
@@ -106,6 +108,42 @@ def test_epoch_progress_uses_only_stable_aggregate_metrics() -> None:
         "validation_loss=0.500000 validation_top1_percent=72.5000 best_epoch=6 "
         "best_validation_top1_percent=71.2500"
     )
+
+
+def test_batch_progress_uses_fixed_width_bar_and_public_counts() -> None:
+    """batch 进度条必须以公开计数同步到 0% 和 100%。"""
+    config = V1M1TrainingConfig(run_index=1, seed=1729)
+
+    initial = _format_v1_m1_batch_progress(config, 0, 4, "train", 0, 0, 2)
+    completed = _format_v1_m1_batch_progress(config, 4, 4, "complete", 200, 1, 1)
+
+    assert initial == (
+        "V1-M1 progress [------------------------------]   0.00% run=1 seed=1729 "
+        "stage=train epoch=0/200 batch=0/2"
+    )
+    assert completed == (
+        "V1-M1 progress [##############################] 100.00% run=1 seed=1729 "
+        "stage=complete epoch=200/200 batch=1/1"
+    )
+
+
+def test_batch_progress_reports_start_updates_and_completion(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """训练器必须输出开始、实时进度和 artifact 成功后的结束提示。"""
+    reporter = _V1M1ProgressReporter(V1M1TrainingConfig(run_index=1, seed=1729), 3)
+
+    reporter.start(first_train_batch_count=1)
+    reporter.complete_batch("train", 1, 1, 1)
+    reporter.complete_batch("validation", 1, 1, 1)
+    reporter.complete_batch("test", 200, 1, 1)
+    reporter.finish(final_test_batch_count=1)
+
+    output = capsys.readouterr().out
+    assert output.startswith("V1-M1 training started run=1 seed=1729 epochs=200 total_batches=3\n")
+    assert "\rV1-M1 progress [------------------------------]   0.00%" in output
+    assert "\rV1-M1 progress [##############################] 100.00%" in output
+    assert output.endswith("V1-M1 training completed run=1 seed=1729 completed_batches=3/3\n")
 
 
 def test_runner_stops_at_missing_archive_before_cuda_or_training(tmp_path: Path) -> None:

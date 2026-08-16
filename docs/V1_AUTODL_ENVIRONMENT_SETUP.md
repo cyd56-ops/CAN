@@ -205,11 +205,13 @@ runner 会在训练前重新验证 archive、解压成员与 canonical decoded d
 ### 5.4 Two pre-registered baseline runs
 
 只有 section 5.2--5.3 均成功后，依序执行这两个独立 run。不得并发运行、重试、增加第三个 seed 或在
-观察到结果后修改配置。训练器没有 CLI；以下 Python API 是唯一正式调用。run 在每个完整 epoch 后立即向
-stdout 输出一行 `V1-M1 progress`，其中包含 run/seed、epoch、train loss、validation loss/top-1 与当前
-best-validation checkpoint；该可观测性只读取已生成的聚合指标，不改变训练、随机性、选模或 artifact。run
-完成后自动以 validation-only rule 选择 model、评估 test 一次，并原子写入 ignored
-`artifacts/v1-m1/run-{1,2}/`。
+观察到结果后修改配置。训练器没有 CLI；以下 Python API 是唯一正式调用。完成数据加载和 deterministic
+setup 后，run 立即输出 `V1-M1 training started`，并在每个 train、validation 与 test batch 完成时以
+`\r` 和 `flush=True` 刷新一条固定宽度的 `V1-M1 progress` 进度条。进度条只含 run/seed、stage、epoch 和
+batch 计数，初始为 `0.00%`，最终 test batch 后为 `100.00%`；每个完整 epoch 仍另输出一行 train loss、
+validation loss/top-1 与当前 best-validation checkpoint 的稳定汇总。selected state、manifest 和 report
+均原子写入 ignored `artifacts/v1-m1/run-{1,2}/` 成功后，run 重绘完成状态并输出 `V1-M1 training completed`。
+该可观测性不读取或写入样本、预测、权重或 secret，也不改变训练、随机性、选模或 artifact。
 
 ```bash
 PYTHONHASHSEED=1729 CUBLAS_WORKSPACE_CONFIG=:4096:8 python - <<'PY'
@@ -241,7 +243,7 @@ PY
 工作日志记录原因；不得删除结果后隐式重跑。
 
 已启动的 Python 进程不会加载后续源码修改；R1 与 R2 均须在其开始时记录 `git rev-parse HEAD`。若为
-R2 部署仅包含 stdout progress 的新 checkpoint，必须在工作日志中保留 R1/R2 的两个 source HEAD 和这项
+R2 部署包含 batch stdout progress 的新 checkpoint，必须在工作日志中保留 R1/R2 的两个 source HEAD 和这项
 observability-only 差异，不能把它误记为相同源码运行。
 
 ### 5.5 Completion handoff

@@ -278,6 +278,64 @@ class V1M1BaselineResult:
     artifacts: V1M1ArtifactPaths
 
 
+class _V1M1ProgressReporter:
+    """在不影响训练状态的前提下渲染 V1-M1 的 batch 进度。"""
+
+    __slots__ = ("_completed_batches", "_config", "_total_batches")
+
+    def __init__(self, config: V1M1TrainingConfig, total_batches: int) -> None:
+        self._config = config
+        self._total_batches = total_batches
+        self._completed_batches = 0
+
+    def start(self, first_train_batch_count: int) -> None:
+        print(
+            f"V1-M1 training started run={self._config.run_index} seed={self._config.seed} "
+            f"epochs={self._config.epoch_count} total_batches={self._total_batches}",
+            flush=True,
+        )
+        self._render("train", 0, 0, first_train_batch_count)
+
+    def complete_batch(
+        self,
+        stage: str,
+        epoch: int,
+        stage_batch: int,
+        stage_batch_count: int,
+    ) -> None:
+        self._completed_batches += 1
+        self._render(stage, epoch, stage_batch, stage_batch_count)
+
+    def end_epoch(self) -> None:
+        print(flush=True)
+
+    def finish(self, final_test_batch_count: int) -> None:
+        self._render(
+            "complete",
+            self._config.epoch_count,
+            final_test_batch_count,
+            final_test_batch_count,
+        )
+        print(flush=True)
+        print(
+            f"V1-M1 training completed run={self._config.run_index} seed={self._config.seed} "
+            f"completed_batches={self._completed_batches}/{self._total_batches}",
+            flush=True,
+        )
+
+    def _render(self, stage: str, epoch: int, stage_batch: int, stage_batch_count: int) -> None:
+        progress = _format_v1_m1_batch_progress(
+            self._config,
+            self._completed_batches,
+            self._total_batches,
+            stage,
+            epoch,
+            stage_batch,
+            stage_batch_count,
+        )
+        print(f"\r{progress}", end="", flush=True)
+
+
 class _V1M1Dataset(Dataset[tuple[Tensor, Tensor]]):
     """将已验证 CIFAR raw tensors 提供给固定 train 或 evaluation transform。"""
 
@@ -552,6 +610,10 @@ def _evaluate_v1_m1(
     model: V1Cifar100ResNet18,
     loader: DataLoader[tuple[Tensor, Tensor]],
     device: torch.device,
+    *,
+    progress: _V1M1ProgressReporter | None = None,
+    stage: str = "validation",
+    epoch: int = 0,
 ) -> V1M1EvaluationMetrics:
     model.eval()
     criterion = torch.nn.CrossEntropyLoss()
@@ -561,7 +623,8 @@ def _evaluate_v1_m1(
     correct_top5 = 0
     predictions: list[int] = []
     with torch.inference_mode():
-        for images, labels in loader:
+        batch_count = len(loader)
+        for batch_index, (images, labels) in enumerate(loader, start=1):
             inputs = images.to(device, non_blocking=True)
             targets = labels.to(device, non_blocking=True)
             logits = model(inputs)
@@ -572,6 +635,8 @@ def _evaluate_v1_m1(
             correct_top5 += int((top5 == targets.unsqueeze(1)).any(dim=1).sum().item())
             total += targets.shape[0]
             predictions.extend(int(value) for value in predicted.cpu().tolist())
+            if progress is not None:
+                progress.complete_batch(stage, epoch, batch_index, batch_count)
     if total < 1:
         raise V1M1BaselineError("V1-M1 evaluation loader is empty")
     return V1M1EvaluationMetrics(
@@ -603,18 +668,43 @@ def _format_v1_m1_epoch_progress(
     )
 
 
+def _format_v1_m1_batch_progress(
+    config: V1M1TrainingConfig,
+    completed_batches: int,
+    total_batches: int,
+    stage: str,
+    epoch: int,
+    stage_batch: int,
+    stage_batch_count: int,
+) -> str:
+    """构造固定宽度、只含公开计数的 batch 进度条。"""
+    percent = completed_batches * 100.0 / total_batches
+    bar_width = 30
+    filled = int(completed_batches * bar_width / total_batches)
+    bar = "#" * filled + "-" * (bar_width - filled)
+    return (
+        f"V1-M1 progress [{bar}] {percent:6.2f}% "
+        f"run={config.run_index} seed={config.seed} stage={stage} "
+        f"epoch={epoch}/{config.epoch_count} batch={stage_batch}/{stage_batch_count}"
+    )
+
+
 def _train_v1_m1_epoch(
     model: V1Cifar100ResNet18,
     loader: DataLoader[tuple[Tensor, Tensor]],
     optimizer: SGD,
     criterion: torch.nn.CrossEntropyLoss,
     device: torch.device,
+    *,
+    progress: _V1M1ProgressReporter,
+    epoch: int,
 ) -> float:
     """执行一个固定 V1-M1 train epoch 并返回样本加权 loss。"""
     model.train()
     total_loss = 0.0
     total = 0
-    for images, labels in loader:
+    batch_count = len(loader)
+    for batch_index, (images, labels) in enumerate(loader, start=1):
         inputs = images.to(device, non_blocking=True)
         targets = labels.to(device, non_blocking=True)
         optimizer.zero_grad(set_to_none=True)
@@ -623,6 +713,7 @@ def _train_v1_m1_epoch(
         optimizer.step()
         total_loss += float(loss.item()) * targets.shape[0]
         total += targets.shape[0]
+        progress.complete_batch("train", epoch, batch_index, batch_count)
     if total < 1:
         raise V1M1BaselineError("V1-M1 training loader is empty")
     return total_loss / total
@@ -902,13 +993,36 @@ def run_v1_m1_baseline(
         nesterov=config.nesterov,
     )
     scheduler = CosineAnnealingLR(optimizer, T_max=config.epoch_count, eta_min=0.0)
+    train_batch_count = len(data.train_loader)
+    validation_batch_count = len(data.validation_loader)
+    test_batch_count = len(data.test_loader)
+    progress = _V1M1ProgressReporter(
+        config,
+        config.epoch_count * (train_batch_count + validation_batch_count) + test_batch_count,
+    )
+    progress.start(train_batch_count)
     best_epoch = 0
     best_validation_top1 = -1.0
     best_state: dict[str, Tensor] | None = None
     epochs: list[V1M1EpochMetrics] = []
     for epoch in range(1, config.epoch_count + 1):
-        training_loss = _train_v1_m1_epoch(model, data.train_loader, optimizer, criterion, device)
-        validation = _evaluate_v1_m1(model, data.validation_loader, device)
+        training_loss = _train_v1_m1_epoch(
+            model,
+            data.train_loader,
+            optimizer,
+            criterion,
+            device,
+            progress=progress,
+            epoch=epoch,
+        )
+        validation = _evaluate_v1_m1(
+            model,
+            data.validation_loader,
+            device,
+            progress=progress,
+            stage="validation",
+            epoch=epoch,
+        )
         metrics = V1M1EpochMetrics(
             epoch=epoch,
             training_loss=training_loss,
@@ -920,6 +1034,7 @@ def run_v1_m1_baseline(
             best_validation_top1 = validation.top1_percent
             best_state = _clone_model_state(model)
         scheduler.step()
+        progress.end_epoch()
         print(
             _format_v1_m1_epoch_progress(config, metrics, best_epoch, best_validation_top1),
             flush=True,
@@ -927,7 +1042,14 @@ def run_v1_m1_baseline(
     if best_state is None:
         raise V1M1BaselineError("V1-M1 baseline did not produce a validation checkpoint")
     model.load_state_dict(best_state, strict=True)
-    test = _evaluate_v1_m1(model, data.test_loader, device)
+    test = _evaluate_v1_m1(
+        model,
+        data.test_loader,
+        device,
+        progress=progress,
+        stage="test",
+        epoch=config.epoch_count,
+    )
     result = V1M1BaselineResult(
         plan=V1M1BaselinePlan(archive=data.manifest, training=config),
         dataset_sha256=data.decoded_sha256,
@@ -938,6 +1060,7 @@ def run_v1_m1_baseline(
         artifacts=artifacts,
     )
     _write_v1_m1_artifacts(result, best_state, device)
+    progress.finish(test_batch_count)
     return result
 
 

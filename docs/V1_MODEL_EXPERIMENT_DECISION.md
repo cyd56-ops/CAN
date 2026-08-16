@@ -243,7 +243,7 @@ V1-M1 的 two-run baseline 规格在首次训练前固定如下：
 | Optimizer | SGD with `lr=0.1`, `momentum=0.9`, `weight_decay=0.0005`, `nesterov=True` |
 | Scheduler | `CosineAnnealingLR(T_max=200, eta_min=0.0)`, stepped once after each completed epoch; exactly 200 epochs, no warmup and no early stopping |
 | Determinism | Per-run `PYTHONHASHSEED`, Python/NumPy/PyTorch CPU/CUDA seeds all equal the run seed; `CUBLAS_WORKSPACE_CONFIG=:4096:8`, `torch.use_deterministic_algorithms(True)`, `cudnn.benchmark=False`, `cudnn.deterministic=True`, and CUDA matmul/cuDNN TF32 disabled |
-| Progress observability | After each completed train/validation epoch, emit and flush one stdout line with run/seed, epoch, aggregate train/validation loss, validation top-1, and current best-validation checkpoint. It is not an input, checkpoint criterion, artifact field, latency measurement, or source of per-sample/model-state data. |
+| Progress observability | After data loading and deterministic setup, emit a `training started` stdout line. Refresh one fixed-width stdout progress bar after every completed train, validation, and test batch using only run/seed, stage, epoch and batch counts; it starts at `0.00%` and reaches `100.00%` after the final test batch. Retain the flushed aggregate epoch summary with train/validation loss, validation top-1, and current best-validation checkpoint. After the selected state, manifest and report are atomically persisted, re-render the completed bar and emit `training completed`. This is not an input, checkpoint criterion, artifact field, latency measurement, or source of per-sample/model-state data. |
 | Checkpoint selection | Evaluate validation after every epoch; replace the in-memory best state only when validation top-1 is strictly higher, retaining the earlier epoch on a tie. After epoch 200, load this best-validation state and evaluate test exactly once; then atomically persist the selected CPU state, manifest and report under the ignored V1-M1 artifact root. |
 
 每次 run 记录每 epoch train/validation loss 与 top-1、final test loss/top-1/top-5、selected epoch、ordered
@@ -345,6 +345,8 @@ polynomial、mask、rejection state、原始认证 response 或可恢复私钥�
 - A2/A3-v1/Fashion-MNIST input 被 V1 route 拒绝且无 fallback 的 route-isolation tests；
 - selected state、manifest/report、duplicate output 与 symlink artifact-root 的正负向测试，以及 no-secret/
   no-large-binary checks；
+- training-start、fixed-width batch progress `0.00%`/`100.00%` 与 artifact 成功后的 training-completed
+  stdout tests；
 - 明确标记的 dataset/training/performance integration tests，不使默认 unit suite 隐式下载或训练。
 
 ## 17. Deferred and excluded scope
