@@ -243,6 +243,7 @@ V1-M1 的 two-run baseline 规格在首次训练前固定如下：
 | Optimizer | SGD with `lr=0.1`, `momentum=0.9`, `weight_decay=0.0005`, `nesterov=True` |
 | Scheduler | `CosineAnnealingLR(T_max=200, eta_min=0.0)`, stepped once after each completed epoch; exactly 200 epochs, no warmup and no early stopping |
 | Determinism | Per-run `PYTHONHASHSEED`, Python/NumPy/PyTorch CPU/CUDA seeds all equal the run seed; `CUBLAS_WORKSPACE_CONFIG=:4096:8`, `torch.use_deterministic_algorithms(True)`, `cudnn.benchmark=False`, `cudnn.deterministic=True`, and CUDA matmul/cuDNN TF32 disabled |
+| Progress observability | After each completed train/validation epoch, emit and flush one stdout line with run/seed, epoch, aggregate train/validation loss, validation top-1, and current best-validation checkpoint. It is not an input, checkpoint criterion, artifact field, latency measurement, or source of per-sample/model-state data. |
 | Checkpoint selection | Evaluate validation after every epoch; replace the in-memory best state only when validation top-1 is strictly higher, retaining the earlier epoch on a tie. After epoch 200, load this best-validation state and evaluate test exactly once; then atomically persist the selected CPU state, manifest and report under the ignored V1-M1 artifact root. |
 
 每次 run 记录每 epoch train/validation loss 与 top-1、final test loss/top-1/top-5、selected epoch、ordered

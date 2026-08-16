@@ -99,17 +99,162 @@ environment 不能被假定会迁移到另一台机器。新机器需要重新�
    `torch.version.cuda` 任一不同，不能声称新机器复现了 frozen tuple；必须将新 tuple 和 smoke
    结果记录到 `PROJECT_WORKLOG.md` 与 V1 决策后，才可用于正式训练。
 
-## 5. Before a formal training run
+## 5. Formal V1-M1 baseline procedure
 
-在服务器上执行任何数据下载前，先确认工作日志的唯一下一步不再是 `LOCAL_OK` 的协议冻结。随后才允许：
+本节仅在 `PROJECT_WORKLOG.md` 的唯一下一步为 `SERVER_REQUIRED` 的 V1-M1 baseline 时适用。每条命令均在
+已冻结的 AutoDL A4000 实例中、仓库根目录执行。不得更换数据来源、模型、切分、预处理、超参数、阈值或
+训练次数；本流程不进入 gate、性能测量、V2、Fiat--Shamir、ML-DSA 或 Stage B。
 
-1. 检出已记录的 Git commit，并保存 `git rev-parse HEAD` 与 `git status --short`；
-2. 依据已冻结的数据集来源、SHA-256 和许可证下载 CIFAR-100；
-3. 校验 archive digest、文件数量、shape、dtype、label range 与 fine-label ordering；
-4. 以预注册的 seeds、batch、optimizer、scheduler、epochs 和 checkpoint rule 完成两次独立 baseline；
-5. 将数据、weights、optimizer state、checkpoint 和 profiler output 保持在 ignored roots，且不提交。
+### 5.1 Source access and checkout
 
-环境可用不等于训练协议已冻结，也不等于正式实验已开始。
+服务器必须先拥有可访问仓库的 GitHub SSH authentication key。首次出现
+`Permission denied (publickey)` 时，已记录 host key 的警告不是错误；应在服务器生成专用
+Ed25519 key，将其 `.pub` 文件作为 authentication key 添加到具备仓库权限的 GitHub 账户，然后测试：
+
+```bash
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519_can_github
+ssh -T git@github.com
+```
+
+测试输出必须包含预期 GitHub 用户名。私钥绝不复制、提交或写入训练 artifact。随后检出工作日志所记录的
+source checkpoint，并保存 Git 状态：
+
+```bash
+git clone git@github.com:cyd56-ops/CAN.git CAN
+cd CAN
+git switch main
+git pull --ff-only
+git status --short
+git rev-parse HEAD
+```
+
+若现有 checkout 不干净，停止并先保留其状态；不得以 reset、checkout 覆盖或强制 pull 清理服务器目录。
+
+### 5.2 Environment and local preflight
+
+激活已冻结环境，并确认 Python、GPU 与 two primary wheels：
+
+```bash
+source "$(conda info --base)/etc/profile.d/conda.sh"
+conda activate can-v1
+python --version
+python -c 'import torch, torchvision; print(torch.__version__); print(torchvision.__version__); print(torch.version.cuda); print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0))'
+python -m pip install -e '.[dev]'
+python -m pip check
+```
+
+预期为 Python `3.11.9`、NVIDIA RTX A4000、`torch==2.13.0+cu126`、
+`torchvision==0.28.0+cu126`、`torch.version.cuda == "12.6"` 及 CUDA available。任一不符时停止；
+同一实例按 section 3 复核，换服或重置按 section 4 重建并更新工作日志，不能把不同 tuple 称为本次冻结
+环境。
+
+在下载前运行不产生数据、权重或正式结果的 focused test suite：
+
+```bash
+python -m pytest \
+  tests/unit/test_v1_cifar100_resnet.py \
+  tests/unit/test_v1_m1_adapter.py \
+  tests/unit/test_v1_m1_baseline.py \
+  tests/security/test_v1_m1_route_security.py \
+  tests/security/test_v1_m1_artifact_security.py
+```
+
+### 5.3 Official archive download and validation
+
+唯一允许的下载入口是以下首方 URL。数据、解压内容和 artifact 均在 ignored roots 中，禁止提交、上传、
+镜像或再分发：
+
+```bash
+mkdir -p data/v1-m1
+curl --fail --location --retry 3 --retry-delay 5 \
+  --output data/v1-m1/cifar-100-python.tar.gz \
+  https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz
+```
+
+完成后必须分别检查 size、SHA-256 和 MD5：
+
+```bash
+stat --printf='%s\n' data/v1-m1/cifar-100-python.tar.gz
+sha256sum data/v1-m1/cifar-100-python.tar.gz
+md5sum data/v1-m1/cifar-100-python.tar.gz
+```
+
+唯一接受值依次为：
+
+```text
+169001437
+85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7
+eb9058c3a382ffc7106e4002c42a8d85
+```
+
+任一值不匹配即拒绝 archive，不得解压或训练。记录失败输出后，只能删除准确目标
+`data/v1-m1/cifar-100-python.tar.gz` 并从同一首方 URL 重试；不得改用镜像。不得让两个下载器同时写入
+同一个 archive。若服务器已经安装 `aria2c` 且单连接下载不可接受，可先停止 `curl`，再仅对同一 URL 使用
+`aria2c --continue=true --max-connection-per-server=8 --split=8`；最终仍以三项完整性校验为唯一接受条件。
+
+三项均通过后显式解压：
+
+```bash
+tar -xzf data/v1-m1/cifar-100-python.tar.gz -C data/v1-m1
+```
+
+runner 会在训练前重新验证 archive、解压成员与 canonical decoded dataset digest；因此不允许手动修改
+`cifar-100-python/train`、`test` 或 `meta`。
+
+### 5.4 Two pre-registered baseline runs
+
+只有 section 5.2--5.3 均成功后，依序执行这两个独立 run。不得并发运行、重试、增加第三个 seed 或在
+观察到结果后修改配置。训练器没有 CLI；以下 Python API 是唯一正式调用。run 在每个完整 epoch 后立即向
+stdout 输出一行 `V1-M1 progress`，其中包含 run/seed、epoch、train loss、validation loss/top-1 与当前
+best-validation checkpoint；该可观测性只读取已生成的聚合指标，不改变训练、随机性、选模或 artifact。run
+完成后自动以 validation-only rule 选择 model、评估 test 一次，并原子写入 ignored
+`artifacts/v1-m1/run-{1,2}/`。
+
+```bash
+PYTHONHASHSEED=1729 CUBLAS_WORKSPACE_CONFIG=:4096:8 python - <<'PY'
+from pathlib import Path
+
+import torch
+
+from can.experiments.v1_m1_baseline import run_v1_m1_baseline
+
+result = run_v1_m1_baseline(Path("data/v1-m1"), 1, torch.device("cuda:0"))
+print(result.selected_epoch, result.test.top1_percent, result.artifacts.root)
+PY
+```
+
+```bash
+PYTHONHASHSEED=1730 CUBLAS_WORKSPACE_CONFIG=:4096:8 python - <<'PY'
+from pathlib import Path
+
+import torch
+
+from can.experiments.v1_m1_baseline import run_v1_m1_baseline
+
+result = run_v1_m1_baseline(Path("data/v1-m1"), 2, torch.device("cuda:0"))
+print(result.selected_epoch, result.test.top1_percent, result.artifacts.root)
+PY
+```
+
+若 run 已创建对应 `run-1` 或 `run-2` 目录，runner 会拒绝覆盖。应保留失败输出和已有 artifact，停止并在
+工作日志记录原因；不得删除结果后隐式重跑。
+
+已启动的 Python 进程不会加载后续源码修改；R1 与 R2 均须在其开始时记录 `git rev-parse HEAD`。若为
+R2 部署仅包含 stdout progress 的新 checkpoint，必须在工作日志中保留 R1/R2 的两个 source HEAD 和这项
+observability-only 差异，不能把它误记为相同源码运行。
+
+### 5.5 Completion handoff
+
+两次 run 都结束后，保留每个 run 的 terminal output、`manifest.json` 与 `report.json`。验收前必须确认：
+
+- 两次 validation 与 test top-1 均至少 `70.00%`；
+- 两次 validation top-1 的绝对差和 test top-1 的绝对差均不超过 `2.00` percentage points；
+- 两个 manifest 均包含相同已验证 archive identity、完整 environment/dataset/state/prediction 摘要；
+- 只按 validation top-1 选择后续 gate 的 accepted state，平局取较小 seed；test 结果不参与选择。
+
+满足条件前，不将任一 weight 标记为 accepted，不开始 gate 或性能报告。权重、数据和 generated artifact
+持续保持 ignored；仅公开摘要、命令、环境和验收结果可进入工作日志。
 
 ## 6. References
 

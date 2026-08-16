@@ -21,6 +21,7 @@ from can.experiments.v1_m1_baseline import (
     _artifact_paths,
     _build_v1_m1_split_indices,
     _decode_meta,
+    _format_v1_m1_epoch_progress,
     _write_v1_m1_artifacts,
     build_v1_m1_baseline_plan,
     run_v1_m1_baseline,
@@ -75,6 +76,36 @@ def test_split_rejects_an_unbalanced_cifar100_training_label_set() -> None:
 
     with pytest.raises(V1M1BaselineError, match="class-balanced"):
         _build_v1_m1_split_indices(labels)
+
+
+def test_epoch_progress_uses_only_stable_aggregate_metrics() -> None:
+    """每个 epoch 的进度行应含可读聚合指标而不含样本或权重。"""
+    metrics = V1M1EpochMetrics(
+        epoch=7,
+        training_loss=1.25,
+        validation=V1M1EvaluationMetrics(
+            loss=0.5,
+            top1_percent=72.5,
+            top5_percent=91.25,
+            correct_top1=3_625,
+            correct_top5=4_563,
+            total=5_000,
+            predictions_sha256="a" * 64,
+        ),
+    )
+
+    progress = _format_v1_m1_epoch_progress(
+        V1M1TrainingConfig(run_index=1, seed=1729),
+        metrics,
+        best_epoch=6,
+        best_validation_top1=71.25,
+    )
+
+    assert progress == (
+        "V1-M1 progress run=1 seed=1729 epoch=7/200 train_loss=1.250000 "
+        "validation_loss=0.500000 validation_top1_percent=72.5000 best_epoch=6 "
+        "best_validation_top1_percent=71.2500"
+    )
 
 
 def test_runner_stops_at_missing_archive_before_cuda_or_training(tmp_path: Path) -> None:

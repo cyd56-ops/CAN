@@ -585,6 +585,24 @@ def _evaluate_v1_m1(
     )
 
 
+def _format_v1_m1_epoch_progress(
+    config: V1M1TrainingConfig,
+    metrics: V1M1EpochMetrics,
+    best_epoch: int,
+    best_validation_top1: float,
+) -> str:
+    """构造不含样本或权重的固定 epoch 进度行。"""
+    return (
+        f"V1-M1 progress run={config.run_index} seed={config.seed} "
+        f"epoch={metrics.epoch}/{config.epoch_count} "
+        f"train_loss={metrics.training_loss:.6f} "
+        f"validation_loss={metrics.validation.loss:.6f} "
+        f"validation_top1_percent={metrics.validation.top1_percent:.4f} "
+        f"best_epoch={best_epoch} "
+        f"best_validation_top1_percent={best_validation_top1:.4f}"
+    )
+
+
 def _train_v1_m1_epoch(
     model: V1Cifar100ResNet18,
     loader: DataLoader[tuple[Tensor, Tensor]],
@@ -891,18 +909,21 @@ def run_v1_m1_baseline(
     for epoch in range(1, config.epoch_count + 1):
         training_loss = _train_v1_m1_epoch(model, data.train_loader, optimizer, criterion, device)
         validation = _evaluate_v1_m1(model, data.validation_loader, device)
-        epochs.append(
-            V1M1EpochMetrics(
-                epoch=epoch,
-                training_loss=training_loss,
-                validation=validation,
-            )
+        metrics = V1M1EpochMetrics(
+            epoch=epoch,
+            training_loss=training_loss,
+            validation=validation,
         )
+        epochs.append(metrics)
         if validation.top1_percent > best_validation_top1:
             best_epoch = epoch
             best_validation_top1 = validation.top1_percent
             best_state = _clone_model_state(model)
         scheduler.step()
+        print(
+            _format_v1_m1_epoch_progress(config, metrics, best_epoch, best_validation_top1),
+            flush=True,
+        )
     if best_state is None:
         raise V1M1BaselineError("V1-M1 baseline did not produce a validation checkpoint")
     model.load_state_dict(best_state, strict=True)
