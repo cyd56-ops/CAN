@@ -306,9 +306,6 @@ class _V1M1ProgressReporter:
         self._completed_batches += 1
         self._render(stage, epoch, stage_batch, stage_batch_count)
 
-    def end_epoch(self) -> None:
-        print(flush=True)
-
     def finish(self, final_test_batch_count: int) -> None:
         self._render(
             "complete",
@@ -647,24 +644,6 @@ def _evaluate_v1_m1(
         correct_top5=correct_top5,
         total=total,
         predictions_sha256=_hash_predictions(predictions),
-    )
-
-
-def _format_v1_m1_epoch_progress(
-    config: V1M1TrainingConfig,
-    metrics: V1M1EpochMetrics,
-    best_epoch: int,
-    best_validation_top1: float,
-) -> str:
-    """构造不含样本或权重的固定 epoch 进度行。"""
-    return (
-        f"V1-M1 progress run={config.run_index} seed={config.seed} "
-        f"epoch={metrics.epoch}/{config.epoch_count} "
-        f"train_loss={metrics.training_loss:.6f} "
-        f"validation_loss={metrics.validation.loss:.6f} "
-        f"validation_top1_percent={metrics.validation.top1_percent:.4f} "
-        f"best_epoch={best_epoch} "
-        f"best_validation_top1_percent={best_validation_top1:.4f}"
     )
 
 
@@ -1034,11 +1013,6 @@ def run_v1_m1_baseline(
             best_validation_top1 = validation.top1_percent
             best_state = _clone_model_state(model)
         scheduler.step()
-        progress.end_epoch()
-        print(
-            _format_v1_m1_epoch_progress(config, metrics, best_epoch, best_validation_top1),
-            flush=True,
-        )
     if best_state is None:
         raise V1M1BaselineError("V1-M1 baseline did not produce a validation checkpoint")
     model.load_state_dict(best_state, strict=True)

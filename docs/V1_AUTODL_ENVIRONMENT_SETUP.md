@@ -208,9 +208,10 @@ runner 会在训练前重新验证 archive、解压成员与 canonical decoded d
 观察到结果后修改配置。训练器没有 CLI；以下 Python API 是唯一正式调用。完成数据加载和 deterministic
 setup 后，run 立即输出 `V1-M1 training started`，并在每个 train、validation 与 test batch 完成时以
 `\r` 和 `flush=True` 刷新一条固定宽度的 `V1-M1 progress` 进度条。进度条只含 run/seed、stage、epoch 和
-batch 计数，初始为 `0.00%`，最终 test batch 后为 `100.00%`；每个完整 epoch 仍另输出一行 train loss、
-validation loss/top-1 与当前 best-validation checkpoint 的稳定汇总。selected state、manifest 和 report
-均原子写入 ignored `artifacts/v1-m1/run-{1,2}/` 成功后，run 重绘完成状态并输出 `V1-M1 training completed`。
+batch 计数，初始为 `0.00%`，最终 test batch 后为 `100.00%`；train loss、validation loss/top-1 与当前
+best-validation checkpoint 的指标只写入 report，不在 stdout 重复打印。selected
+state、manifest 和 report 均原子写入 ignored `artifacts/v1-m1/run-{1,2}/` 成功后，run 重绘完成状态并输出
+`V1-M1 training completed`。
 该可观测性不读取或写入样本、预测、权重或 secret，也不改变训练、随机性、选模或 artifact。
 
 ```bash
