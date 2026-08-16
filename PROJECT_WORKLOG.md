@@ -264,8 +264,9 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 # 3. Current state
 
 - **Current branch:** `main`；2026-08-12 已在 `/home/kali/CAN` 初始化本地 Git repository，并配置 `origin` 为 `https://github.com/cyd56-ops/CAN.git`。
-- **Last published source checkpoint:** `dc8f209`（`Add V1-M1 epoch progress reporting`）已推送至
-  `origin/main`；其前序 V1-M1 artifact/training-boundary checkpoint 为 `c6c38df`。
+- **Last published source checkpoint:** `eadae38`（`Add V1-M1 batch progress reporting`）已推送至
+  `origin/main`；其前序 stdout epoch-progress checkpoint 为 `dc8f209`，artifact/training-boundary checkpoint
+  为 `c6c38df`。
 - **Worktree state:** 唯一 worktree 为 `/home/kali/CAN`；当前 `main` 跟踪 `origin/main`。以
   `git status --short` 和 `git rev-parse HEAD` 复核本机工作树状态；`.gitignore` 排除了 `.venv/`、
   `data/`、`artifacts/`、checkpoints、模型权重和 `paper/*.pdf`。
@@ -282,7 +283,7 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 - **Public baseline result:** 两次固定十 epoch 运行均得到 test loss `0.007989783663357957`、accuracy `99.85%`、prediction SHA `f54b2351...6f0a`、state SHA `b71980eb...122be` 和 fingerprint `e4fbf9c0...c14f`；模型 50,370 parameters/201,480 bytes。两次本机 batch-1 median 为 `70.2/65.9 us`，batch-256 median 为 `1464.0/1340.001 us`。
 - **Capability report result:** accepted-state 评估的 protected/public prediction SHA 分别为 `e5b48d60...e4a7` 与 `f54b2351...6f0a`；10,000 次 public、10,000 次 protected 调用精确互斥，单次拒绝探针和默认关闭探针均为零模型调用。最终复核运行的 public/protected/deny end-to-end median 为 `238.7/1540.9/1324.4 us`。
 - **Known limitations:** A0、A4 与 V1 conformance 均为非安全 toy profile；A1/A2 只支持当前 CPU tuple；A4-C1/V1-C1 只有 dependency-free sparse exact backend，没有生产参数、NTT、PyTorch/qint8/CUDA/export、系统 related-work 检索或白盒保证。V1-P2 sampler/single-attempt/retry 与 V1-C1 只支持 toy reproducibility、compiled arithmetic conformance 和 coordinator state testing；V1-M1 archive 已在服务器完成校验与解压、R1 正在运行，但尚无完成的 weights、baseline/gate/性能结果、验收或协议安全结论。
-- **Documentation/code consistency:** 研究设计、安全文档、V1-P2/PSR/V1-M1 决策、README、治理脚本和本日志已同步 non-production exact/neural/A3-v2、`V1-P2-PSR-E1` generated-key/single-attempt/retry、V1-C1 graph/A3-v2 route、CIFAR/ResNet route、已验证 V1 GPU tuple、训练协议、artifact/report writer、本机 V1-M1 implementation、batch-level stdout progress 与服务器 formal-baseline 操作手册；`dc8f209` 已同步至 `origin/main`，本次 batch-progress 改动尚未形成或发布 Git checkpoint，唯一下一步为 `SERVER_REQUIRED` 的完成 R1 与一次 R2。
+- **Documentation/code consistency:** 研究设计、安全文档、V1-P2/PSR/V1-M1 决策、README、治理脚本和本日志已同步 non-production exact/neural/A3-v2、`V1-P2-PSR-E1` generated-key/single-attempt/retry、V1-C1 graph/A3-v2 route、CIFAR/ResNet route、已验证 V1 GPU tuple、训练协议、artifact/report writer、本机 V1-M1 implementation、batch-level stdout progress 与服务器 formal-baseline 操作手册；`eadae38` 已同步至 `origin/main`，唯一下一步为 `SERVER_REQUIRED` 的完成 R1 与一次 R2。
 - **Server execution status:** 2026-08-16 项目负责人报告：已在冻结的 AutoDL A4000 环境从唯一首方 URL 完成 CIFAR-100 archive 的 size/SHA-256/MD5 校验并显式解压；预注册 R1（seed `1729`）已经启动。尚未向本工作树报告 focused-test 输出、R1 terminal output、artifact、metrics 或 R2 状态，故不得声称 baseline 已完成、验收或产生性能结果。
 - **Security relevance:** A1/A2/A3/A4 既有边界保持不变；V1 测试支持 canonical polynomial encodings、公开 immutable profile、exact negacyclic relation、A3-v2 binding、单次终态 response、abort/expiry、route confusion、内部错误、replay/concurrency 和 pre-commit reject 零 protected calls。公开 fixtures 可直接构造 valid relation，只支持 conformance，不证明私钥持有、M-LWE/M-SIS 安全、主动冒充安全或授权安全。
 
@@ -409,7 +410,7 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 | 实现 V1-M1 ignored artifact/report writer | Engineering / model experiment | completed | isolated baseline runner 已完成 | 保存选定 state、结构化 manifest/report，拒绝覆盖和 symlink；14 项 focused artifact/route tests 通过且未下载或训练 |
 | 实现 V1-M1 epoch 进度可观测性 | Engineering / model experiment | completed | R1 已在旧 runner 进程启动；输出不得影响训练、随机性或 artifact | 每 epoch 输出稳定的公共训练/验证摘要并 flush；单元测试覆盖格式与内容；R2 前记录实际 source HEAD |
 | 扩展 V1-M1 batch 进度可观测性 | Engineering / model experiment | completed | 项目负责人要求开始提示、同步进度条/百分比和结束提示；输出不得影响训练、随机性、选模或 artifact | 无依赖 reporter 已完成；focused 30 项、完整 625 项与质量/治理检查通过，项目负责人已授权提交并直推 |
-| 发布 V1-M1 batch-progress checkpoint | Engineering / publication | in_progress | 项目负责人明确授权提交当前 5 个已验证 source/test/documentation 文件并直推 `origin/main` | 提交前运行治理检查，推送后记录 commit、远端 ref 与干净工作树 |
+| 发布 V1-M1 batch-progress checkpoint | Engineering / publication | completed | 项目负责人明确授权提交当前 5 个已验证 source/test/documentation 文件并直推 `origin/main` | `eadae38` 已推送，远端 ref 为 `49f4a97..eadae38 main -> main`；发布记录随后写入工作日志 |
 | 同步 V1-M1 checkpoint 到 `origin/main` | Engineering / publication | completed | writer、progress 文档/测试和完整质量检查闭合，项目负责人明确授权直推 | `c6c38df` 与 `dc8f209` 已由 `main` 直推，内容不含数据、weights 或 artifacts |
 | 执行 V1 CIFAR-100/ResNet-18 baseline 与认证门控实验 | Engineering / model experiment | in_progress | V1-M1 environment、data/training protocol、isolated implementation 和 artifact/report writer 闭合；R1 已启动 | 两次可复现 baseline、accepted artifact、allow prediction equivalence、reject zero calls 和认证/模型 latency 报告通过 |
 | 建立 V2 ML-DSA 标准 reference 基线 | Research / cryptography | pending | V1 exact/neural/authentication 闭合 | 标准测试向量与规范 parser/reference 通过；不要求首版神经化全部 hash/encoding |
@@ -418,14 +419,12 @@ public 功能/输出与 protected path 独立且不可升级；protected 验证�
 
 # 6. Current next step
 
-**计算资源：`LOCAL_OK`。当前只提交并直推已验证的 V1-M1 batch-progress source checkpoint；不得下载
-CIFAR-100、训练或生成真实 V1-M1 artifact。**
+**计算资源：`SERVER_REQUIRED`。V1-M1 batch-progress source checkpoint 已提交并直推；本机不得下载 CIFAR-100、
+训练或生成真实 V1-M1 artifact。**
 
-**唯一下一步：`LOCAL_OK` 运行治理检查后提交并直推当前 batch-progress checkpoint 至 `origin/main`，记录
-commit、远端 ref 与干净工作树。随后恢复 `SERVER_REQUIRED`：保留既有 R1 的实际 source HEAD、terminal output、
-state/manifest/report，并在开始 R2 前记录新 source HEAD，将与 R1 的差异限定为 observability-only。不得重试、
-增加 run、改变数据、split、预处理、超参数或阈值，也不得进入 gate、性能、V2、Fiat--Shamir、ML-DSA 或
-Stage B。**
+**唯一下一步：`SERVER_REQUIRED` 保留既有 R1 的实际 source HEAD、terminal output、state/manifest/report，并在
+开始 R2 前记录新 source HEAD，将与 R1 的差异限定为 observability-only。不得重试、增加 run、改变数据、split、
+预处理、超参数或阈值，也不得进入 gate、性能、V2、Fiat--Shamir、ML-DSA 或 Stage B。**
 
 # 7. Blockers and residual risks
 
@@ -505,8 +504,10 @@ Stage B。**
 - **Verification:** `.venv/bin/python -m pytest tests/unit/test_v1_m1_baseline.py tests/unit/test_v1_cifar100_resnet.py tests/unit/test_v1_m1_adapter.py tests/security/test_v1_m1_route_security.py tests/security/test_v1_m1_artifact_security.py` -> `30 passed`；`.venv/bin/python -m pytest -q` -> `625 passed in 34.18s`；`.venv/bin/ruff check .`、`.venv/bin/ruff format --check .`、`.venv/bin/mypy src tests`、`.venv/bin/python -m pip check`、`bash -n scripts/check_governance_docs.sh` 与 `./scripts/check_governance_docs.sh` 均通过。`pip check` 仅提示用户 cache 目录不可写并禁用 cache。
 - **Publication authorization:** 项目负责人已明确授权将当前 5 个 source/test/documentation 文件提交并直推
   `origin/main`；不包含 data、weights、artifact、secret 或其他生成输出。
-- **Resource / next step:** `LOCAL_OK`。运行治理检查后提交并推送；推送完成后记录 commit/remote ref，并恢复
-  `SERVER_REQUIRED` 的 R1/R2 交接。
+- **Publication:** 功能提交 `eadae380c72d928023cd30f4bd88fa90def257f6` 已由 `main` 推送至 `origin/main`，
+  push 输出为 `49f4a97..eadae38 main -> main`；本条工作日志随后的发布记录提交也应保持在 `origin/main`。
+- **Resource / next step:** `SERVER_REQUIRED`。日志发布记录完成后，恢复 R1/R2 服务器交接；任何服务器 run
+  均须记录实际 source HEAD，并把本次差异限定为 observability-only。
 
 ## 2026-08-16 - Publish the V1-M1 progress checkpoint on main
 
