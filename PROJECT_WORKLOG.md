@@ -561,6 +561,29 @@ C2 public-head 正式训练、accepted-state 分层报告及后续 M2 正式模�
   文档内容均予保留；本 checkpoint 不提交或推送。
 
 
+## 2026-08-19 - Publish AuthenticatedR2 C1 source checkpoint
+
+- **Scope:** Published the local `V1-M1-C1` `AuthenticatedR2` Gate Layer composition, its package export,
+  unit/integration/security tests, C1/C2/M2 route decision, and synchronized research/security/V1-M1/worklog
+  documentation. This checkpoint does not implement the server-required accepted-R2 evaluator, does not retrain
+  or fine-tune R2, and does not create or publish data, model state, credential, transcript, or experiment report.
+- **Verification:** `.venv/bin/python -m pytest tests/unit/test_v1_m1_adapter.py tests/integration/test_authenticated_r2_integration.py tests/security/test_authenticated_r2_security.py tests/integration/test_v1_neural_a3_v2_integration.py tests/security/test_v1_m1_route_security.py` -> 21 passed.
+  `.venv/bin/python -m pytest` -> 629 passed. `.venv/bin/ruff check .`, `.venv/bin/ruff format --check .`,
+  `.venv/bin/mypy src tests`, `.venv/bin/python -m pip check`, `bash -n scripts/check_governance_docs.sh`,
+  and `./scripts/check_governance_docs.sh` all passed.
+- **Git checkpoint:** commit `f93fe1e22a91043c089c5401021c61db0623c5e4`
+  (`Add AuthenticatedR2 C1 gate composition`) was pushed with `git push origin main`; `origin/main` matches
+  local `main`. The commit contains exactly `PROJECT_WORKLOG.md`, `SECURITY.md`,
+  `docs/RESEARCH_DESIGN.md`, `docs/V1_INTERNAL_CAPABILITY_TIERING_DECISION.md`,
+  `docs/V1_MODEL_EXPERIMENT_DECISION.md`, `src/can/access/__init__.py`,
+  `src/can/access/v1_m1_adapter.py`, `tests/unit/test_v1_m1_adapter.py`,
+  `tests/integration/test_authenticated_r2_integration.py`, and
+  `tests/security/test_authenticated_r2_security.py`.
+- **Residual state:** untracked `ara/` research provenance files were intentionally excluded from this source
+  checkpoint. The unique next step remains `SERVER_REQUIRED`: implement and run the no-training accepted-R2
+  10,000-image gate-equivalence, zero-call isolation, and segmented latency/throughput evaluator on the authorized
+  server.
+
 ## 2026-08-12 - Git bootstrap for initial GitHub publication
 
 - **Authorization and remote check:** 项目负责人要求将当前项目上传至 `https://github.com/cyd56-ops/CAN`。经授权的 `git ls-remote --heads https://github.com/cyd56-ops/CAN.git` 返回 exit `0` 且无 refs，远端没有现有分支，不存在需合并或覆盖的远端历史。
