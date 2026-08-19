@@ -347,9 +347,13 @@ V1-M1 的主要价值是观察认证成本相对现实 CNN inference 的比例�
 
 `can.experiments.v1_m1_c1` 是固定的无训练 accepted-R2 evaluator。它只接受 `run-2` 的 manifest、
 baseline report 与 state，先核验 R2 canonical state digest、baseline prediction digest、官方 archive、
-decoded dataset digest 与冻结 `cuda:0` 环境，之后才加载模型。它把 archive `test` 的同一 10,000 张原始
-图像分别送入直接 R2 与 `AuthenticatedR2` allow 路径，并要求逐元素 logits 与 ordered prediction digest
-相等。每次 allow 都由 index 确定性生成新的公开 V1-P2 conformance commitment/response，以符合
+decoded dataset digest 与冻结 `cuda:0` 环境，之后才加载模型。evaluator 必须使用 R2 的 seed `1730`、
+`CUBLAS_WORKSPACE_CONFIG=:4096:8` 和 deterministic CUDA policy；先以原 baseline 的 test batch `256`
+复核 ordered prediction digest，失败时不得创建 Gate Layer 或进入逐张循环。随后把 archive `test` 的同一
+10,000 张原始图像以 batch `1` 分别送入直接 R2 与 `AuthenticatedR2` allow 路径，并要求每张逐元素
+logits 相等且两条 batch-1 路径的 ordered prediction digest 相等。batch-256 baseline digest 不得直接用来
+约束 batch-1 digest，因为不同 CUDA/cuDNN batch execution shape 不属于同一数值执行契约。每次 allow 都由
+index 确定性生成新的公开 V1-P2 conformance commitment/response，以符合
 A3-v2 对同一 commitment 禁止重用的状态契约；这不生成、读取或保存 secret，也不是身份认证或不可伪造性
 实验。外部 forward hook 只在进程内暂存一次 gated logits 以作比较，绝不写入 report。
 

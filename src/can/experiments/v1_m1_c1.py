@@ -623,12 +623,46 @@ def _update_prediction_digest(digest: hashlib._Hash, prediction: int) -> None:
     digest.update(struct.pack(">q", prediction))
 
 
+def _evaluate_direct_r2_baseline_reference(
+    model: V1Cifar100ResNet18,
+    device: torch.device,
+    test_pixels: Tensor,
+) -> tuple[str, str]:
+    """以原 baseline 的 batch-256 形态重新计算 direct R2 摘要。"""
+    logits_digest = hashlib.sha256()
+    predictions: list[int] = []
+    with torch.inference_mode():
+        for start in range(0, test_pixels.shape[0], baseline.V1_M1_EVALUATION_BATCH_SIZE):
+            image_batch = test_pixels[
+                start : start + baseline.V1_M1_EVALUATION_BATCH_SIZE
+            ].contiguous()
+            logits = _r2_inference(model, _preprocess_and_h2d(image_batch, device))
+            predictions.extend(
+                int(value)
+                for value in torch.topk(logits, k=5, dim=1).indices[:, 0].detach().cpu().tolist()
+            )
+            cpu_logits = logits.detach().cpu().contiguous()
+            logits_digest.update(cpu_logits.numpy().tobytes())
+    return logits_digest.hexdigest(), baseline._hash_predictions(predictions)
+
+
 def _evaluate_equivalence(
     model: V1Cifar100ResNet18,
     device: torch.device,
     test_pixels: Tensor,
     neural_profile: V1NeuralProfile,
 ) -> dict[str, object]:
+    baseline_logits, baseline_predictions = _evaluate_direct_r2_baseline_reference(
+        model,
+        device,
+        test_pixels,
+    )
+    if baseline_predictions != V1_M1_C1_ACCEPTED_PREDICTIONS_SHA256:
+        raise V1M1C1EvaluatorError("direct R2 predictions do not match the accepted R2 reference")
+    print(
+        f"C1 direct R2 reference evaluated={baseline.V1_M1_TEST_SIZE}/{baseline.V1_M1_TEST_SIZE}",
+        flush=True,
+    )
     direct_logits_digest = hashlib.sha256()
     direct_predictions_digest = hashlib.sha256()
     authenticated = AuthenticatedR2(
@@ -671,7 +705,9 @@ def _evaluate_equivalence(
                 gated_predictions_digest,
                 _update_logit_digest(gated_logits_digest, gated_logits),
             )
-            if (index + 1) % baseline.V1_M1_EVALUATION_BATCH_SIZE == 0:
+            if (
+                index + 1
+            ) % baseline.V1_M1_EVALUATION_BATCH_SIZE == 0 or index + 1 == baseline.V1_M1_TEST_SIZE:
                 print(
                     f"C1 AuthenticatedR2 evaluated={index + 1}/{baseline.V1_M1_TEST_SIZE}",
                     flush=True,
@@ -689,14 +725,16 @@ def _evaluate_equivalence(
     ):
         raise V1M1C1EvaluatorError("accepted Gate Layer call accounting changed")
     direct_predictions = direct_predictions_digest.hexdigest()
-    if direct_predictions != V1_M1_C1_ACCEPTED_PREDICTIONS_SHA256:
-        raise V1M1C1EvaluatorError("direct R2 predictions do not match the accepted R2 reference")
     if direct_logits_digest.hexdigest() != gated_logits_digest.hexdigest():
         raise V1M1C1EvaluatorError("direct and gated logits digests differ")
     if direct_predictions != gated_predictions_digest.hexdigest():
         raise V1M1C1EvaluatorError("direct and gated prediction digests differ")
     return {
         "test_size": baseline.V1_M1_TEST_SIZE,
+        "baseline_batch_size": baseline.V1_M1_EVALUATION_BATCH_SIZE,
+        "baseline_direct_logits_sha256": baseline_logits,
+        "baseline_direct_predictions_sha256": baseline_predictions,
+        "gate_comparison_batch_size": 1,
         "direct_logits_sha256": direct_logits_digest.hexdigest(),
         "gated_logits_sha256": gated_logits_digest.hexdigest(),
         "direct_predictions_sha256": direct_predictions,
@@ -1005,6 +1043,15 @@ def _validate_frozen_server_environment(device: torch.device) -> None:
         or torch.cuda.get_device_name(device) != "NVIDIA RTX A4000"
     ):
         raise V1M1C1EvaluatorError("runtime does not match the frozen V1 AutoDL environment")
+    expected_seed = baseline.V1_M1_RUN_SEEDS[V1_M1_C1_RUN_INDEX - 1]
+    if (
+        os.environ.get("PYTHONHASHSEED") != str(expected_seed)
+        or os.environ.get("CUBLAS_WORKSPACE_CONFIG") != ":4096:8"
+    ):
+        raise V1M1C1EvaluatorError(
+            "C1 evaluator requires the accepted R2 deterministic environment variables"
+        )
+    baseline._configure_v1_m1_determinism(expected_seed)
 
 
 def _report_path(artifact_root: Path) -> Path:

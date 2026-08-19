@@ -294,9 +294,10 @@ protected experts 与协调器提交的权限 mask。verifier 始终只产生 ev
 # 3. Current state
 
 - **Current branch:** `main`；本会话复核完整 `HEAD` 为
-  `feca097c7804e5c227cd0277835a39a220b44e2c`，唯一 worktree 为 `/home/kali/CAN`。
-- **Last published source checkpoint:** `ead54d2` 已推送至 `origin/main`；V1-M1 artifact/training-boundary
-  checkpoint 为 `c6c38df`。
+  `4f2a3c24c81c4a36eddeb9e892344a287ff33227`，唯一 worktree 为 `/home/kali/CAN`。
+- **Last published source checkpoint:** `4f2a3c24c81c4a36eddeb9e892344a287ff33227` 已推送至
+  `origin/main`；C1 evaluator implementation checkpoint 为
+  `b1a8340aee3af8316dc78cd8b93e3de46a3754f4`。
 - **Worktree state:** 唯一 worktree 为 `/home/kali/CAN`；当前 `main` 跟踪 `origin/main`。以
   `git status --short` 和 `git rev-parse HEAD` 复核本机工作树状态；`.gitignore` 排除了 `.venv/`、
   `data/`、`artifacts/`、checkpoints、模型权重和 `paper/*.pdf`。
@@ -305,14 +306,19 @@ protected experts 与协调器提交的权限 mask。verifier 始终只产生 ev
 - **Filesystem state:** 当前包含治理/研究/安全与 A0--A4/V1 协议、规格和构造决定文档、Python 项目及开发/ML 依赖锁、A0/A4/V1 exact reference、A1 两个 verifier backends、A4-C1/V1-C1 dependency-free verifiers、A2-E1/A2-E2 模型与协调器、A3-v1/A3-v2 state/coordinator、A4/V1 exact/neural evidence adapters、单元/差分/集成/安全测试和治理检查脚本；ignored `data/a2/` 与 `artifacts/a2/` 保存数据、local states、manifest、license 和报告，`paper/` 保存两份 ignored PDF；`.git` 现为本地 Git metadata，`.agents` 与 `.codex` 目录仍为空。
 - **Completed modules:** A0 parser/reference evidence、A1 exact backends、A2-E1/A2-E2 模型/协调器/实验、A3-v1 默认关闭协议壳、A4 exact/neural relation 与 adapters，以及 V1-P2 non-production public profile/parser/registry、coefficient-domain exact relation、A3-v2 commit-first single-terminal coordinator、exact/neural evidence adapters、`V1-C1-MSIS` graph、`V1-P2-PSR-E1` generated-key/sampler/single-attempt experiment、fresh-transcript retry/exhaustion harness 和 V1-M1 CIFAR model/archive parser/adapter/runner/artifact writer 已实现。V1-P2 生产 prover、安全参数、NTT 和加速/量化 neural backend 尚未实现。
 - **Completed specifications:** A1/A2/A3 规格保持闭合；A4 已选择 reviewed GPV PFDH 并固定非生产 public profile、proof/message 编码、exact reference relation、A3 adapter，以及 A4-C1 `80->3600->1153->1` point-pulse graph、范围账本和全部 canonical `(y,z)` 上的 `V_nn==V_ref` 证明；V1-P1 普通矩阵方案保留为 baseline，V1-P2 已冻结 reviewed FSwA-S Module-SIS protocol、non-production exact profile/range ledger、polynomial transcript/encoding、M-LWE/M-SIS 安全边界、A3-v2、direct-convolution neural relation，以及 `V1-P2-PSR-E1` toy prover/sampler/rejection 实验契约；V1-M1 已冻结 CIFAR-100/CIFAR-style ResNet-18 route、数据供应链/许可边界、fine-label order、split、preprocessing、two-run deterministic training and acceptance protocol；长期 `V0 -> V1-prep -> V1 -> V2` 路线及独立代码保留约束已同步。
-- **Tests passed:** A0/A1 正负向、全域 differential 和 no-fallback 测试保持通过；V1-P2-PSR-E1 retry focused 58 项通过。V1-C1 focused unit/differential/security/A3-v2 route suite 47 项通过；V1-M1 focused unit/security suite 29 项通过；完整 pytest 624 项通过。
+- **Tests passed:** A0/A1 正负向、全域 differential 和 no-fallback 测试保持通过；V1-P2-PSR-E1 retry
+  focused 58 项通过。C1 evaluator 与 Gate Layer focused suite 31 项通过；完整 pytest 639 项通过；ruff、
+  format、mypy、pip check 和治理检查均通过。
 - **Configured stack:** 本机 A1/A2 继续使用 Python `==3.11.*`（3.11.9）、官方 torch `2.13.0+cpu`、torchvision `0.28.0+cpu`、NumPy `2.4.4`、Pillow `12.2.0` 和 `requirements-ml.lock`。V1-M1 另冻结 AutoDL `can-v1`：Python 3.11.9、RTX A4000 16,376 MiB、driver 580.82.07、torch `2.13.0+cu126`、torchvision `0.28.0+cu126`，两个 primary wheel SHA-256 见 V1-M1 决策 section 8；不得将其写回 A2 CPU lock。
 - **Baseline result:** 两次同种子十 epoch运行均得到 test loss `0.33665058851242063`、accuracy `88.08%`、prediction SHA `e5b48d60...e4a7`、state SHA `88062fee...8613` 和 determinism fingerprint `a59a9a9a...7d53`；模型 235,146 parameters/940,584 bytes。本机 batch-1 median 为 110.8/104.9 us，batch-256 median 为 2987.4/2790.8 us。
 - **Gate result:** gate 重训得到同一 `88.08%`、prediction/state SHA；10,000 个 gated labels 全部匹配，accepted/rejected end-to-end median 为 `1849.2/1570.5 us`，verifier-only median `1245.5 us`，accepted coordinator median `85.4 us`，accepted overhead `1750.2 us`/`1767.88%`。10,000 allow 各一次模型调用，rejected probe 与 1,100 次 rejected latency 请求均为零模型调用。
 - **Public baseline result:** 两次固定十 epoch 运行均得到 test loss `0.007989783663357957`、accuracy `99.85%`、prediction SHA `f54b2351...6f0a`、state SHA `b71980eb...122be` 和 fingerprint `e4fbf9c0...c14f`；模型 50,370 parameters/201,480 bytes。两次本机 batch-1 median 为 `70.2/65.9 us`，batch-256 median 为 `1464.0/1340.001 us`。
 - **Capability report result:** accepted-state 评估的 protected/public prediction SHA 分别为 `e5b48d60...e4a7` 与 `f54b2351...6f0a`；10,000 次 public、10,000 次 protected 调用精确互斥，单次拒绝探针和默认关闭探针均为零模型调用。最终复核运行的 public/protected/deny end-to-end median 为 `238.7/1540.9/1324.4 us`。
 - **Known limitations:** A0、A4 与 V1 conformance 均为非安全 toy profile；A1/A2 只支持当前 CPU tuple；A4-C1/V1-C1 只有 dependency-free sparse exact backend，没有生产参数、NTT、PyTorch/qint8/CUDA/export、系统 related-work 检索或白盒保证。V1-P2 sampler/single-attempt/retry 与 V1-C1 只支持 toy reproducibility、compiled arithmetic conformance 和 coordinator state testing；V1-M1 baseline 已验收并选择 R2 state，但 R1/R2 terminal output 尚未回传；accepted-state gate、性能结果或协议安全结论尚未完成。
-- **Documentation/code consistency:** 研究设计、安全文档、V1-P2/PSR/V1-M1 决策、README、治理脚本和本日志已同步 non-production exact/neural/A3-v2、`V1-P2-PSR-E1` generated-key/single-attempt/retry、V1-C1 graph/A3-v2 route、CIFAR/ResNet route、已验证 V1 GPU tuple、训练协议、artifact/report writer、本机 V1-M1 implementation 与服务器 formal-baseline 操作手册；当前远端 checkpoint 为 `feca097`。
+- **Documentation/code consistency:** 研究设计、安全文档、V1-P2/PSR/V1-M1 决策、README、治理脚本和本日志
+  已同步 C1 evaluator 契约；当前远端 checkpoint 为 `4f2a3c2`。本地 `AGENTS.md` 与
+  `docs/V1_AUTODL_ENVIRONMENT_SETUP.md` 另记录付费服务器启动门槛和服务器命令判断规则，未要求服务器为
+  读取本地手册而更新源码。
 - **Server execution status:** 2026-08-16 项目负责人报告：已在冻结的 AutoDL A4000 环境从唯一首方 URL 完成 CIFAR-100 archive 的 size/SHA-256/MD5 校验并显式解压，预注册 R1（seed `1729`）与 R2（seed `1730`）均已完成。R1=`410b32aa2734e600ade81404f6dad0d0c67bf7ea`：selected epoch `187`、validation top-1 `78.0000%`、test top-1 `77.0800%`、canonical state SHA-256 `749a71dbee7e8ce7a7c842f168379befa477641de3ad5c94c3924f3843eb71ad`。R2=`feca097c7804e5c227cd0277835a39a220b44e2c`：selected epoch `175`、validation top-1 `78.1000%`、test top-1 `77.6100%`、canonical state SHA-256 `c0733e293c398f58edd3ae6c6cb5c9c217572274b095cb9c4ace282f5c101343`。两个 artifact verification 与 cross-run manifest 均为 `PASS`；R1/R2 test prediction SHA-256 分别为 `b9d7b22541f6b1f5a3e8a8bd9163d0db9a4c36b203103890802b708ae90e677e` 与 `08ab99b57698fe5ccc45d85b0916b03c211ca5ccd1d080251ddd08d38d097131`。两次 metrics 满足单次及差异阈值，baseline 因此验收，按 validation-only rule 选择 R2 state；R1/R2 terminal output 尚未回传。
 - **Security relevance:** A1/A2/A3/A4 既有边界保持不变；V1 测试支持 canonical polynomial encodings、公开 immutable profile、exact negacyclic relation、A3-v2 binding、单次终态 response、abort/expiry、route confusion、内部错误、replay/concurrency 和 pre-commit reject 零 protected calls。公开 fixtures 可直接构造 valid relation，只支持 conformance，不证明私钥持有、M-LWE/M-SIS 安全、主动冒充安全或授权安全。
 
@@ -320,10 +326,10 @@ protected experts 与协调器提交的权限 mask。verifier 始终只产生 ev
 
 | Purpose | Exact command | Result |
 | --- | --- | --- |
-| Git status | `git status --short` | 通过；工作树含未提交的 V1 Gate Layer/C1-C2 文档、实现和测试改动，准确列表见本 checkpoint 总结 |
+| Git status | `git status --short` | 工作树含本次 C1 digest 修复与服务器成本门槛改动；共享 checkpoint 候选为 `PROJECT_WORKLOG.md`、`docs/V1_MODEL_EXPERIMENT_DECISION.md`、`src/can/experiments/v1_m1_c1.py`、`tests/unit/test_v1_m1_c1.py`，本地操作规则为 `AGENTS.md`、`docs/V1_AUTODL_ENVIRONMENT_SETUP.md`，另有本次未修改的 untracked `ara/` |
 | Current branch | `git branch --show-current` | `main` |
 | Worktree list | `git worktree list --porcelain` | 唯一 worktree `/home/kali/CAN`，branch `refs/heads/main` |
-| Full HEAD | `git rev-parse HEAD` | `feca097c7804e5c227cd0277835a39a220b44e2c` |
+| Full HEAD | `git rev-parse HEAD` | `4f2a3c24c81c4a36eddeb9e892344a287ff33227` |
 | A2 focused tests | `.venv/bin/python -m pytest tests/unit/test_a2_mlp.py tests/unit/test_a2_baseline.py tests/unit/test_a2_gate.py tests/unit/test_a2_gate_experiment.py tests/integration/test_a2_gate_integration.py tests/security/test_a2_baseline_security.py tests/security/test_a2_gate_security.py tests/security/test_a2_gate_experiment_security.py` | 通过，73 tests |
 | A2 public focused tests | `.venv/bin/python -m pytest tests/unit/test_a2_public_mlp.py tests/unit/test_a2_public_baseline.py tests/security/test_a2_public_baseline_security.py` | 通过，41 tests |
 | A2 capability/materializer focused tests | `.venv/bin/python -m pytest tests/unit/test_a2_capability.py tests/unit/test_a2_capability_experiment.py tests/unit/test_a2_materialize.py tests/integration/test_a2_capability_integration.py tests/security/test_a2_capability_security.py tests/security/test_a2_capability_experiment_security.py tests/security/test_a2_materialize_security.py` | 通过，93 tests |
@@ -451,14 +457,18 @@ protected experts 与协调器提交的权限 mask。verifier 始终只产生 ev
 
 # 6. Current next step
 
-**计算资源：`SERVER_REQUIRED`。本地 `AuthenticatedR2` 组合、C1 no-training evaluator 与确定性测试已经
-闭合；下一步需要已授权服务器上的 accepted R2 state、正式 CIFAR-100 test split 和 GPU latency/throughput
-测量。开始前必须使用已核验 artifact/environment，不重训或微调 R2，也不得把 state、数据或报告提交到仓库。**
+**计算资源：`LOCAL_OK`。C1 evaluator 首次服务器执行在 `9984/10000` 后因 direct prediction digest
+与 accepted baseline digest 不一致而停止，未生成 report。修复版现已在本机闭合 batch-256 baseline digest、
+batch-1 Gate Layer 等价、deterministic env 和 fail-before-gate 回归测试，但尚未形成或发布新的共享 source
+checkpoint；旧 commit 不得重跑，也不得继续占用服务器。**
 
-**唯一下一步：将已验证的 `can.experiments.v1_m1_c1` 源码发布到已授权服务器后执行一次 no-training
-accepted-state gate evaluator：加载并核验 R2 manifest/state，把同一 10,000-image test split 分别送入直接
-R2 与 `AuthenticatedR2` allow 路径，验证 prediction/logits digest 等价，并对 tamper/replay/expiry/abort/
-route confusion 记录零 R2 calls；同时分离 credential、Gate Layer、preprocess/R2 与端到端 latency/throughput。
+**唯一下一步：在项目负责人明确授权后，只发布已经通过 `31` 项 focused、`639` 项 full tests 和全部质量检查的
+C1 修复共享 checkpoint；发布完成并把新的完整远端 commit 写回本地服务器手册后，才允许按服务器成本门槛
+转为 `SERVER_REQUIRED` 并通知项目负责人执行一次 no-training accepted-state gate evaluator。该 evaluator
+加载并核验 R2 manifest/state，以 batch `256` 先复核 accepted baseline prediction digest，再把同一 10,000-image
+test split 逐张送入 direct R2 与 `AuthenticatedR2` allow 路径验证 logits/prediction 等价，并对
+tamper/replay/expiry/abort/route confusion 记录零 R2 calls；同时分离 credential、Gate Layer、preprocess/R2
+与端到端 latency/throughput。
 该报告通过前不开始 M1-C2；
 报告通过后的唯一候选步骤是 `LOCAL_OK` 的 C2 cut/public-head/训练选择规则冻结与 split composition。
 C2 public-head 正式训练、accepted-state 分层报告及后续 M2 正式模型评估仍分别保持
@@ -473,7 +483,7 @@ C2 public-head 正式训练、accepted-state 分层报告及后续 M2 正式模�
   `main -> origin/main` upstream。推送内容经 staged diff 检查与敏感模式扫描，不含数据、weights、artifact、
   private key、GitHub token 或 AWS access key。C1 evaluator checkpoint `b1a8340aee3af8316dc78cd8b93e3de46a3754f4`
   已由 `main` 推送至 `origin/main`；本地服务器操作手册、`AGENTS.md` 和 `ara/` 未纳入该推送。
-- **V1-M1 experiment status:** 已授权 AutoDL A4000 容器完成 R1/R2。R1 selected epoch `187`、validation top-1 `78.0000%`、test top-1 `77.0800%`、state SHA-256 `749a71dbee7e8ce7a7c842f168379befa477641de3ad5c94c3924f3843eb71ad`；R2 selected epoch `175`、validation top-1 `78.1000%`、test top-1 `77.6100%`、state SHA-256 `c0733e293c398f58edd3ae6c6cb5c9c217572274b095cb9c4ace282f5c101343`。两者 full artifact verification 与 cross-run manifest 均 PASS，R2 依 validation-only rule 被接受。C1 no-training evaluator 的本地 source/unit/focused tests 已完成，但该状态未复制到仓库，真实 10,000-image gate/性能测量尚未执行。
+- **V1-M1 experiment status:** 已授权 AutoDL A4000 容器完成 R1/R2。R1 selected epoch `187`、validation top-1 `78.0000%`、test top-1 `77.0800%`、state SHA-256 `749a71dbee7e8ce7a7c842f168379befa477641de3ad5c94c3924f3843eb71ad`；R2 selected epoch `175`、validation top-1 `78.1000%`、test top-1 `77.6100%`、state SHA-256 `c0733e293c398f58edd3ae6c6cb5c9c217572274b095cb9c4ace282f5c101343`。两者 full artifact verification 与 cross-run manifest 均 PASS，R2 依 validation-only rule 被接受。C1 no-training evaluator source 已发布至完整 commit `4f2a3c24c81c4a36eddeb9e892344a287ff33227`；真实 10,000-image gate/性能测量尚未执行，R2 state/data 继续只保留在服务器 ignored roots，不复制到仓库。
 - **Artifact lifecycle:** D-024 重新物化的两个 `state_dict`、manifest 和 `capability.json` 只位于
   ignored `artifacts/a2/`；它们不得提交、上传或进入发布包。任何删除后的再次生成都必须重跑固定
   materializer、摘要校验和 no-training evaluator。
@@ -2442,9 +2452,9 @@ C2 public-head 正式训练、accepted-state 分层报告及后续 M2 正式模�
 - **Measurement boundary:** 所有结果要求使用 `cuda:0` RTX A4000、torch CUDA 12.6 tuple；报告固定 100
   warmups 和 1,000 serialized observations。no-R2 accepted gate/coordinator 段与单独 neural verifier 段
   的 median 差仅作为 coordinator residual estimate，不可写成更强的 profiling claim。
-- **Consequences:** 本地 source 和确定性 tests 闭合，但真实 10,000-image report 尚未生成，故唯一下一步
-  保持 `SERVER_REQUIRED` 的 source publication 后一次性执行。报告通过前不得启动 C2/M2 或覆盖/重跑
-  ignored C1 report。
+- **Consequences:** 本地 source 和确定性 tests 闭合，evaluator 已通过 checkpoint `b1a8340` 发布，当前
+  远端完整冻结 commit 为 `4f2a3c24c81c4a36eddeb9e892344a287ff33227`。真实 10,000-image report 尚未
+  生成；只有服务器成本门槛通过后才可一次性执行。报告通过前不得启动 C2/M2 或覆盖/重跑 ignored C1 report。
 - **Verification:** `.venv/bin/python -m pytest tests/unit/test_v1_m1_c1.py tests/unit/test_v1_m1_adapter.py
   tests/integration/test_authenticated_r2_integration.py tests/security/test_authenticated_r2_security.py
   tests/integration/test_v1_neural_a3_v2_integration.py tests/security/test_v1_m1_route_security.py` 通过
@@ -2452,3 +2462,57 @@ C2 public-head 正式训练、accepted-state 分层报告及后续 M2 正式模�
   `.venv/bin/ruff format --check .`、`.venv/bin/mypy src tests`、`.venv/bin/python -m pip check`、
   `bash -n scripts/check_governance_docs.sh`、`./scripts/check_governance_docs.sh` 和 `git diff --check`
   均通过。
+
+## D-050 - Require a frozen published source before paid-server use
+
+- **Date:** 2026-08-19
+- **Decision:** 任何启动、分配、重启或持续占用按时计费服务器的请求，必须先通过本地源码冻结门槛：目标
+  实现和唯一命令完成，相关测试与必要质量检查通过，输入/artifact/environment/预期输出/停止条件已核对，
+  且源码已发布到远端并记录唯一完整 commit。只有随后才能把唯一下一步标为 `SERVER_REQUIRED` 并通知
+  项目负责人。服务器启动后若发现源码、配置契约或命令仍需修改，立即停止计费任务，回到 `LOCAL_OK`，
+  重新测试并发布新 commit；不得边占用服务器边补代码。
+- **Reason:** C1 evaluator 在服务器准备后才补齐，造成等待和无效 GPU 成本；这是流程失序，不是服务器环境
+  或用户操作错误。
+- **Historical application:** C1 evaluator 曾以完整 commit
+  `4f2a3c24c81c4a36eddeb9e892344a287ff33227` 通过门槛，但真实执行暴露 D-051 的测试缺口，现已撤销该
+  commit 的 C1 重跑授权并回退 `LOCAL_OK`。新的完整 commit 尚未发布，服务器手册 5.1.3 因此不提供可执行
+  C1 checkout 命令。
+- **Consequence:** 后续每次服务器通知必须包含完整 commit、拉取/HEAD 核验、唯一执行命令、预期产物和
+  停止条件。本规则适用于任何付费环境配置、正式训练、评估或性能测量。
+- **Verification:** `.venv/bin/python -m pytest tests/unit/test_v1_m1_c1.py tests/unit/test_v1_m1_adapter.py
+  tests/integration/test_authenticated_r2_integration.py tests/security/test_authenticated_r2_security.py
+  tests/integration/test_v1_neural_a3_v2_integration.py tests/security/test_v1_m1_route_security.py` 通过
+  `28 tests`；`.venv/bin/python -m pytest` 通过 `636 tests`；`.venv/bin/ruff check .`、
+  `.venv/bin/ruff format --check .`、`.venv/bin/mypy src tests`、`.venv/bin/python -m pip check`、
+  `bash -n scripts/check_governance_docs.sh`、`./scripts/check_governance_docs.sh` 与 `git diff --check` 通过。
+
+## D-051 - Stop C1 after real-server digest mismatch and return to LOCAL_OK
+
+- **Date:** 2026-08-19
+- **Observed failure:** 已授权服务器执行冻结 C1 evaluator 到 `C1 AuthenticatedR2 evaluated=9984/10000`，
+  随后 `_evaluate_equivalence` 在 direct prediction digest 检查失败，报错
+  `V1M1C1EvaluatorError: direct R2 predictions do not match the accepted R2 reference`，未写入 C1 report。
+- **Decision:** 该失败说明此前“源码已闭合、可直接执行”的判断过早；立即将唯一下一步退回 `LOCAL_OK`，不得
+  删除已有服务器 artifact、重复运行旧 commit 或继续保持计费实例。先修正并测试执行形态契约，再发布新完整
+  commit。当前调查假设是 accepted baseline digest 来自 evaluation batch size `256`，而 C1 direct/gated
+  comparison 使用 batch size `1`；不同 CUDA/cuDNN batch path 可能使边界 argmax 不同，需用同一 batch-256
+  pass 复核 baseline digest，不能把该假设当作已验证事实。
+- **Required fix boundary:** C1 应保留 batch-256 pass 作为 accepted baseline prediction digest 的复核；逐张
+  batch-1 pass 只验证 direct R2 与 `AuthenticatedR2` 的 logits/predictions 精确一致和 protected call
+  accounting。不能放宽 state/data/environment digest、Gate Layer 等价或拒绝零调用要求。
+- **Source audit:** 原 baseline digest 由 test batch `256`、`torch.topk(..., k=5)[:, 0]` 和 big-endian
+  int64 prediction 编码生成；失败版本 C1 用 batch `1` 的 argmax 直接比较该 digest，且服务器命令遗漏
+  `PYTHONHASHSEED=1730`、`CUBLAS_WORKSPACE_CONFIG=:4096:8` 与 baseline deterministic policy。这两项均为
+  evaluator 契约缺陷；真实失败是否完全由其中一项导致，要由修复版在同一 accepted R2 环境复核，不能仅凭
+  本机 CPU 测试宣称已证实。
+- **Local fix:** evaluator 现在先按原 baseline 的 batch `256` 和 GPU `torch.topk` 复核 accepted prediction
+  digest，失败时在 Gate Layer 构造前终止；随后仍以 batch `1` 对每张图执行 direct/gated logits 精确等价，
+  并分别记录 batch-256 baseline 与 batch-1 gate digests。入口强制 seed `1730`、
+  `CUBLAS_WORKSPACE_CONFIG=:4096:8` 并调用原 baseline deterministic policy。服务器手册已撤销旧 commit
+  的重跑授权；新完整 commit 尚未发布，当前继续保持 `LOCAL_OK`。
+- **Verification:** `.venv/bin/python -m pytest tests/unit/test_v1_m1_c1.py tests/unit/test_v1_m1_adapter.py
+  tests/integration/test_authenticated_r2_integration.py tests/security/test_authenticated_r2_security.py
+  tests/integration/test_v1_neural_a3_v2_integration.py tests/security/test_v1_m1_route_security.py` 通过
+  `31 tests`；`.venv/bin/python -m pytest` 通过 `639 tests in 37.95s`；`.venv/bin/ruff check .`、
+  `.venv/bin/ruff format --check .`、`.venv/bin/mypy src tests`、`.venv/bin/python -m pip check`、
+  `bash -n scripts/check_governance_docs.sh`、`./scripts/check_governance_docs.sh` 和 `git diff --check` 通过。
