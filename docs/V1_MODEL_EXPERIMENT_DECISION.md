@@ -345,6 +345,20 @@ exact verifier 只作为 V1-C1 differential/oracle 对照；Gate Layer 是 `Auth
 V1-M1 的主要价值是观察认证成本相对现实 CNN inference 的比例；不得只报告总延迟而隐藏 verifier
 或模型成本，也不得把本机结果外推为跨设备性能保证。
 
+`can.experiments.v1_m1_c1` 是固定的无训练 accepted-R2 evaluator。它只接受 `run-2` 的 manifest、
+baseline report 与 state，先核验 R2 canonical state digest、baseline prediction digest、官方 archive、
+decoded dataset digest 与冻结 `cuda:0` 环境，之后才加载模型。它把 archive `test` 的同一 10,000 张原始
+图像分别送入直接 R2 与 `AuthenticatedR2` allow 路径，并要求逐元素 logits 与 ordered prediction digest
+相等。每次 allow 都由 index 确定性生成新的公开 V1-P2 conformance commitment/response，以符合
+A3-v2 对同一 commitment 禁止重用的状态契约；这不生成、读取或保存 secret，也不是身份认证或不可伪造性
+实验。外部 forward hook 只在进程内暂存一次 gated logits 以作比较，绝不写入 report。
+
+性能报告固定使用 100 次 warmup、1,000 次串行 observation，并在每个 observation 的前后同步 CUDA。
+它分别记录 input canonicalization/hash、commitment/challenge state、response encoding、neural Gate Layer、
+无 R2 的 accepted Gate+coordinator、trusted preprocess/H2D、R2 inference，以及 accepted/rejected
+端到端 latency/throughput。coordinator 的单独值是从无 R2 accepted path 与 neural Gate Layer median
+相减得到的非负 residual estimate，不能误称为直接逐指令剖析。
+
 ## 15. Artifact and secret policy
 
 CIFAR data、trained weights、optimizer state、checkpoint、transcript collection 和 profiler dump 均位于
@@ -352,6 +366,11 @@ ignored roots。`run_v1_m1_baseline` 将 selected CPU `state_dict`、`manifest.j
 `artifacts/v1-m1/run-{1,2}/`；文件以原子创建方式写入、拒绝覆盖和 symlink，且 report/manifest 只记录公开
 dataset/model/environment digest、metrics 和 prediction digest，不包含 state tensor 内容。不得记录 V1 secret
 polynomial、mask、rejection state、原始认证 response 或可恢复私钥。
+
+C1 evaluator 仅向 `artifacts/v1-m1/c1/accepted-r2-report.json` 原子写入一次 ignored report；该 report
+包含 accepted R2 的公开 digest、环境、调用计数、结果 digest、拒绝隔离计数和性能统计，不包含图像、state、
+raw credential、transcript 或 logits。已存在该路径时 fail closed，未经新的书面实验决定不得通过删除或覆盖
+来重跑。
 
 测试 key、mask 和临时 model state 只进入 pytest temporary directory 或进程内存，并在测试后清理。
 
@@ -370,6 +389,8 @@ polynomial、mask、rejection state、原始认证 response 或可恢复私钥�
 - A2/A3-v1/Fashion-MNIST input 被 V1 route 拒绝且无 fallback 的 route-isolation tests；
 - selected state、manifest/report、duplicate output 与 symlink artifact-root 的正负向测试，以及 no-secret/
   no-large-binary checks；
+- C1 evaluator 的 run-2-only state/manifest/report 绑定、fresh public conformance credential sequence、
+  tamper/replay/expiry/abort/route-confusion 零 R2 calls 与 C1 report overwrite/symlink 拒绝测试；
 - training-start、single fixed-width batch progress `0.00%`/`100.00%`、无 epoch 重复 stdout 与 artifact 成功后的
   training-completed stdout tests；
 - 明确标记的 dataset/training/performance integration tests，不使默认 unit suite 隐式下载或训练。
@@ -378,9 +399,9 @@ polynomial、mask、rejection state、原始认证 response 或可恢复私钥�
 
 R1/R2 baseline 是否通过、选定 state、artifact digest 和服务器 provenance 属于动态事实，唯一记录于
 `PROJECT_WORKLOG.md`；本决定不复制 artifact 或权重。固定 `AuthenticatedR2` Gate Layer 本地组合及其
-conformance allow/reject 等价与零调用测试已经通过；当前待执行的是已授权服务器上的 accepted-R2
-10,000-image 等价、隔离和端到端性能报告。C2 的 cut、public-head、训练选择规则和任何阈值失败后的
-探索性后续决策仍需另行冻结。
+conformance allow/reject 等价与零调用测试已经通过。no-training C1 evaluator 已在本地实现并通过其
+确定性 unit/focused tests；当前待执行的是已授权服务器上的 accepted-R2 10,000-image 等价、隔离和端到端
+性能报告。C2 的 cut、public-head、训练选择规则和任何阈值失败后的探索性后续决策仍需另行冻结。
 
 不属于 V1-M1：ImageNet、ViT/WideResNet 对比、adversarial robustness、模型水印、白盒权重保护、
 分布式训练、生产 serving、完整侧信道、联合训练的 learned authentication gate、图像/提示词 Secret
