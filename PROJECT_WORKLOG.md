@@ -584,6 +584,22 @@ C2 public-head 正式训练、accepted-state 分层报告及后续 M2 正式模�
   10,000-image gate-equivalence, zero-call isolation, and segmented latency/throughput evaluator on the authorized
   server.
 
+## 2026-08-19 - Document repeat-login SSH recovery for the authorized server
+
+- **Cause and correction:** The authorized server retained `/root/.ssh/id_ed25519_can_github`, but a later shell
+  had no running `ssh-agent`, causing `ssh-add -l` to report that it could not connect to an authentication agent
+  and GitHub SSH fetch to fail. Updated `docs/V1_AUTODL_ENVIRONMENT_SETUP.md` to separate first-access/new-server
+  setup from repeat login on the same instance. The procedure now configures a `can-github` host alias with an
+  explicit `IdentityFile` and `IdentitiesOnly yes`, so repeat `git pull --ff-only` does not depend on an agent for
+  an unencrypted key; the document retains agent recovery only for a passphrase-protected key.
+- **Boundary:** No private key, public-key content, server data, R2 state, artifact, credential or training result
+  was read into this workspace or committed. The unique next step remains the `SERVER_REQUIRED` no-training C1
+  accepted-R2 evaluator.
+- **Verification:** `git diff --check`, `bash -n scripts/check_governance_docs.sh`, and
+  `./scripts/check_governance_docs.sh` passed after the documentation update.
+- **Commit-ready candidates:** `docs/V1_AUTODL_ENVIRONMENT_SETUP.md` and `PROJECT_WORKLOG.md`; untracked `ara/`
+  remains outside this checkpoint.
+
 ## 2026-08-12 - Git bootstrap for initial GitHub publication
 
 - **Authorization and remote check:** 项目负责人要求将当前项目上传至 `https://github.com/cyd56-ops/CAN`。经授权的 `git ls-remote --heads https://github.com/cyd56-ops/CAN.git` 返回 exit `0` 且无 refs，远端没有现有分支，不存在需合并或覆盖的远端历史。

@@ -105,31 +105,99 @@ environment 不能被假定会迁移到另一台机器。新机器需要重新�
 已冻结的 AutoDL A4000 实例中、仓库根目录执行。不得更换数据来源、模型、切分、预处理、超参数、阈值或
 训练次数；本流程不进入 gate、性能测量、V2、Fiat--Shamir、ML-DSA 或 Stage B。
 
-### 5.1 Source access and checkout
+### 5.1 GitHub SSH access and checkout
 
-服务器必须先拥有可访问仓库的 GitHub SSH authentication key。首次出现
-`Permission denied (publickey)` 时，已记录 host key 的警告不是错误；应在服务器生成专用
-Ed25519 key，将其 `.pub` 文件作为 authentication key 添加到具备仓库权限的 GitHub 账户，然后测试：
+先根据服务器状态选择唯一对应的操作。**首次访问当前实例**是指还没有 CAN checkout，或尚未配置
+`can-github` SSH alias；**再次登录同一实例**是指 `/root/.ssh/id_ed25519_can_github` 与已有 CAN
+checkout 均仍存在。后者只更新已有 checkout，绝不再次 clone、下载数据或重建 R2 artifact。实例被释放、
+系统重置或私钥/checkout 丢失时，按 section 4 视为新服务器，再执行首次访问流程。
+
+#### 5.1.1 First access to this instance
+
+服务器必须拥有一个已添加到具备 `cyd56-ops/CAN` 访问权限 GitHub 账户的专用 Ed25519 public key。
+先确认私钥文件存在且权限正确；若文件不存在才生成新 key，并仅把 `.pub` 内容添加到 GitHub。私钥绝不
+复制、提交、上传或写入训练 artifact。
 
 ```bash
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/id_ed25519_can_github
-ssh -T git@github.com
+install -d -m 700 /root/.ssh
+test -f /root/.ssh/id_ed25519_can_github
+test -f /root/.ssh/id_ed25519_can_github.pub
+chmod 600 /root/.ssh/id_ed25519_can_github
+chmod 644 /root/.ssh/id_ed25519_can_github.pub
 ```
 
-测试输出必须包含预期 GitHub 用户名。私钥绝不复制、提交或写入训练 artifact。随后检出工作日志所记录的
-source checkpoint，并保存 Git 状态：
+仅当以上 `test` 命令失败时，生成替换服务器专用 key；随后只复制输出的 public key 到 GitHub，绝不显示
+或复制私钥：
 
 ```bash
-git clone git@github.com:cyd56-ops/CAN.git CAN
+ssh-keygen -t ed25519 -C "can-autodl-server" -f /root/.ssh/id_ed25519_can_github
+cat /root/.ssh/id_ed25519_can_github.pub
+```
+
+为 CAN 专门配置 host alias，使 Git 每次登录都直接选择该 private key，而不是依赖短暂的
+`ssh-agent` 状态。以下命令只在 `/root/.ssh/config` 缺少 `Host can-github` 时追加 stanza，不覆盖已有
+SSH 配置：
+
+```bash
+touch /root/.ssh/config
+if ! grep -Fqx 'Host can-github' /root/.ssh/config; then
+  cat >> /root/.ssh/config <<'EOF'
+Host can-github
+    HostName github.com
+    User git
+    IdentityFile /root/.ssh/id_ed25519_can_github
+    IdentitiesOnly yes
+EOF
+fi
+chmod 600 /root/.ssh/config
+ssh -T git@can-github
+```
+
+测试输出必须包含预期 GitHub 用户名。首次 checkout 才执行：
+
+```bash
+git clone git@can-github:cyd56-ops/CAN.git CAN
 cd CAN
 git switch main
-git pull --ff-only
 git status --short
 git rev-parse HEAD
 ```
 
-若现有 checkout 不干净，停止并先保留其状态；不得以 reset、checkout 覆盖或强制 pull 清理服务器目录。
+#### 5.1.2 Repeat login to the same instance
+
+再次登录、重开 shell 或重新启动同一实例时，SSH alias 会从 `/root/.ssh/config` 重新读取 private key，
+因此不需要重新生成 key、重新添加 GitHub public key、再次 clone，或默认启动 `ssh-agent`。在已有
+checkout 中执行：
+
+```bash
+cd <existing-CAN-checkout>
+ssh -T git@can-github
+git remote set-url origin git@can-github:cyd56-ops/CAN.git
+git status --short
+git pull --ff-only origin main
+git rev-parse HEAD
+```
+
+`git status --short` 输出非空时停止并保留服务器改动；不得用 `reset --hard`、`checkout --` 或强制 pull
+清理服务器目录。`ssh -T` 出现 `Permission denied (publickey)` 时，先确认 alias、private key 和文件权限：
+
+```bash
+ssh -G can-github | grep -E '^(hostname|user|identityfile|identitiesonly) '
+ls -l /root/.ssh/id_ed25519_can_github /root/.ssh/id_ed25519_can_github.pub
+ssh -T -o IdentitiesOnly=yes -i /root/.ssh/id_ed25519_can_github git@github.com
+```
+
+`Could not open a connection to your authentication agent` 仅表示当前 shell 没有运行 `ssh-agent`，不表示
+GitHub public key 或服务器 private key 已丢失。上述 alias 对未加 passphrase 的 key 不依赖 agent；若
+private key 设置了 passphrase，才在当前 shell 启动 agent 并加载 key：
+
+```bash
+eval "$(ssh-agent -s)"
+ssh-add /root/.ssh/id_ed25519_can_github
+ssh -T git@can-github
+```
+
+新的 shell、重启或 agent 退出后需要重复这三行，但无需重新生成或上传 public key。
 
 ### 5.2 Environment and local preflight
 
