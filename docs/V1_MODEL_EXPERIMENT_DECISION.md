@@ -42,8 +42,9 @@ V1-M1 必须新增独立 model、dataset、experiment、adapter、profile、arti
 
 本地 implementation 位于 `src/can/model/v1_cifar100_resnet.py`、
 `src/can/access/v1_m1_adapter.py` 和 `src/can/experiments/v1_m1_baseline.py`。它们不导入 A2
-model、dataset、parser 或 authorization route；V1-M1 的唯一公开请求入口是 raw CIFAR tensor 经
-`V1M1AccessCoordinator` 的 adapter 路线。
+model、dataset、parser 或 authorization route。`src/can/access/v1_m1_adapter.py` 已以现有 V1-C1 neural
+evidence 和 A3-v2 状态机实现 `AuthenticatedR2`：该组合模型的公开入口处理 raw CIFAR tensor 与显式
+credential，但不向请求方暴露单独的受保护 R2 forward。
 
 ## 4. Dataset identity and supply-chain boundary
 
@@ -280,19 +281,39 @@ CIFAR tensor。V1-M1 adapter 负责 section 5 的 canonicalization，并把同�
 
 ## 12. Coordinator and model boundary
 
-V1 coordinator 的数据流固定为：
+V1-M1 的主路线固定为物理组合对象 `AuthenticatedR2=(V_phi,C,f_theta)`，其中 `V_phi` 是已证明
+`V_nn==V_ref` 的冻结 V1-C1 神经 Gate Layer，`C` 是 A3-v2 transcript/authorization coordinator，`f_theta`
+是由 validation-only rule 选定、并由 `PROJECT_WORKLOG.md` 记录的冻结 R2 ResNet-18。`V_phi` 不读取业务图像 tensor，`f_theta` 不读取 credential
+原始字段；二者只由 `C` 持有的 canonical input digest、profile 和一次性 transcript 绑定。当前阶段不训练
+`V_phi`，不重训/微调 R2，不实施图像 trigger、soft gate、`gate * logits` 或输出遮蔽路线。
+
+`V_phi` 的固定性具体指：由 coefficient-domain `V_ref`、完整 canonical range ledger 和可信公开
+Module-SIS profile 确定性生成 topology/weights/bias，不经过 credential 数据训练，并在组合对象构造后
+保持不可训练。NNAES 只作为“密码关系到固定神经图”的构造类比；不同于其 key-specific AES 网络，
+`AuthenticatedR2` 的 Gate Layer 不嵌入签名私钥、prover secret 或静态隐藏 trigger。对非规范连续输入
+不做神经插值，必须在进入 Gate Layer 前由 parser fail closed。
+
+`AuthenticatedR2` 的数据流固定为：
 
 ```text
 untrusted CIFAR input + V1 commitment
 -> trusted V1-M1 input adapter and snapshot
 -> A3-v2 pending transcript
--> Module-SIS exact/neural evidence
--> sole coordinator authorization commit
--> trusted preprocessing of the stored snapshot
--> exactly one ResNet-18 invocation
+-> V1-C1 neural Gate Layer evidence for canonical response
+-> internal sole coordinator authorization commit
+-> trusted preprocessing of the stored snapshot only on allow
+-> exactly one internal R2 ResNet-18 invocation, or fixed deny
 ```
 
-Verifier 不导入模型，不调用模型，也不持有私钥。ResNet-18、Router 和请求方都不是权限提交点。
+Verifier 不导入或调用 R2，也不持有私钥；它只输出 evidence。`C` 是唯一权限提交点，ResNet-18、Router 和
+请求方都不是权限提交点。拒绝时 `AuthenticatedR2` 不执行 R2 forward、不释放 logits 或中间特征；“模型内”
+描述的是固定 Gate Layer 作为组合模型的神经子模块，不是对白盒读取、修改权重或绕过组合 API 的防御主张。
+
+当前 `AuthenticatedR2` 是 `V1-M1-C1` 的内部最小 reference：只验收 `DENY/protected`、冻结 R2 等价和
+拒绝零调用。C1 的 accepted-R2 服务器报告通过后，`V1-M1-C2` 才增加显式 public entry 与二专家硬路由：
+`PUBLIC` 只执行公共专家 `E0`，`PROTECTED` 只执行冻结受保护专家 `E1`，`DENY` 不执行二者；protected
+失败不能降级 public。多个 protected experts、`allowed_mask` 和受约束 task router 不属于本决定的
+M1-C2 实现，延后至独立 V1-M2 决策。
 
 ## 13. Gate experiment matrix
 
@@ -300,14 +321,14 @@ V1 主实验必须报告：
 
 | Route | Expected verifier calls | Expected ResNet calls | Required result |
 | --- | ---: | ---: | --- |
-| valid emitted response | 1 | 1 | gated prediction equals ungated baseline |
+| valid emitted response | 1 neural Gate Layer call | 1 | gated prediction equals the frozen R2 baseline |
 | malformed/tampered response | at most 1 | 0 | fixed deny |
 | abort or retry exhaustion | 0 | 0 | fixed deny |
 | expired/replayed transcript | 0 | 0 | fixed deny |
 | input/model/profile mismatch | 0 | 0 | fixed deny |
 | verifier/model internal error | at most 1 | 0 or one entered failing call | no fallback |
 
-必须分别测量 exact verifier 和未来 neural verifier，不得把二者实现为请求方可选择的 `A or B` 路线。
+exact verifier 只作为 V1-C1 differential/oracle 对照；Gate Layer 是 `AuthenticatedR2` 的唯一配置神经验证路线。请求方不得选择 exact/neural 的 `A or B` 路线，也不得通过单独 R2 entry 绕过组合模型。
 
 ## 14. Performance reporting
 
@@ -342,6 +363,10 @@ polynomial、mask、rejection state、原始认证 response 或可恢复私钥�
 - uint8 exact type/shape/range/channel/order、trailing/duplicate field 和 profile mismatch parser tests；
 - canonical digest、snapshot mutation、normalization 和 direct/gated prediction equivalence tests；
 - valid、tamper、replay、expiry、abort、concurrent duplicate response 和 zero-call security tests；
+- `AuthenticatedR2` 的组成、冻结参数、credential/image 路径隔离、allow 与直接冻结 R2 prediction digest
+  等价、reject 零 R2 forward/logits、以及 R2 direct-entry 不可由公开组合 API 选择的测试；
+- Gate Layer compiler identity、公开 profile digest、固定 topology/parameter digest、不含私钥/静态
+  trigger，以及实值/NaN/Inf/非规范 credential 在进入 neural core 前拒绝的测试；
 - A2/A3-v1/Fashion-MNIST input 被 V1 route 拒绝且无 fallback 的 route-isolation tests；
 - selected state、manifest/report、duplicate output 与 symlink artifact-root 的正负向测试，以及 no-secret/
   no-large-binary checks；
@@ -351,12 +376,15 @@ polynomial、mask、rejection state、原始认证 response 或可恢复私钥�
 
 ## 17. Deferred and excluded scope
 
-当前延期：dataset 的实际下载、两次 baseline 训练、accepted-state gate、性能报告和任何阈值失败后的探索性
-后续决策。`run_v1_m1_baseline` 已写入 single-run 的 state/manifest/report，但只有两次服务器 run 均满足
-预注册 acceptance 时才可标记其中一个 state 为 accepted weight。
+R1/R2 baseline 是否通过、选定 state、artifact digest 和服务器 provenance 属于动态事实，唯一记录于
+`PROJECT_WORKLOG.md`；本决定不复制 artifact 或权重。固定 `AuthenticatedR2` Gate Layer 本地组合及其
+conformance allow/reject 等价与零调用测试已经通过；当前待执行的是已授权服务器上的 accepted-R2
+10,000-image 等价、隔离和端到端性能报告。C2 的 cut、public-head、训练选择规则和任何阈值失败后的
+探索性后续决策仍需另行冻结。
 
 不属于 V1-M1：ImageNet、ViT/WideResNet 对比、adversarial robustness、模型水印、白盒权重保护、
-分布式训练、生产 serving、完整侧信道、V2 ML-DSA 和 Stage B 工具网关。
+分布式训练、生产 serving、完整侧信道、联合训练的 learned authentication gate、图像/提示词 Secret
+Trigger、多受保护专家 MoE mask、V2 ML-DSA 和 Stage B 工具网关。
 
 ## 18. Acceptance criteria for this decision
 

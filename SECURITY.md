@@ -48,9 +48,12 @@ route confusion 或让旧凭据进入新 verifier 的行为都必须 fail closed
 - 请求方不能读取受保护中间特征或直接调用验证层之后的业务网络；
 - 本地 profile registry、公开验证参数和策略配置可信；
 - 在需要 replay 防护的阶段，nonce/challenge 状态存储可信；
-- 业务网络本身不负责认证或授权。
+- 业务网络本身不单独提交认证或授权；V1-M1-C1 的受保护业务分支只能作为组合模型内部、由 Gate
+  Layer evidence 和协调器决定控制的分支调用。M1-C2 只在同一假设下增加显式 public expert 与
+  protected expert 二路硬分派；后续 M2 才增加多个 protected experts 和权限掩码。唯一协调器始终
+  提交 public/protected/deny，未经 protected 提交不得调用 suffix 或受保护专家。
 
-业务输入 `x` 与 credential 必须使用独立 schema 和解析路径。任何候选 “Secret Trigger” 表述在形成专门决定前都只表示显式 credential 的研究性别名，不能授权依赖业务输入中的隐藏模式、提示词或普通特征。
+业务输入 `x` 与 credential 必须使用独立 schema 和解析路径。V1-M1/M2 中 credential 是独立的 commitment/challenge/response transcript，绑定 image digest、model/profile、nonce 和 expiry；客户端私有材料不得进入 Gate Layer、R2、日志或 checkpoint。V1 主路线不把该 transcript 称为 Secret Trigger。若未来增加静态 trigger 对照，只能在独立 protocol identifier 下作为可重放 bearer-gate，并明确不提供身份、不可伪造性或 anti-replay；它不得依赖业务输入中的隐藏像素模式、纹理、提示词或普通特征，不得通过后门训练实现，也不得成为 V1 fallback。
 
 阶段 B 额外信任唯一授权协调器、capability issuer 和工具网关。Router、LLM、规划专家、业务专家及其自然语言输出均不可信，不能提交权限。
 
@@ -75,7 +78,7 @@ route confusion 或让旧凭据进入新 verifier 的行为都必须 fail closed
 - 尝试指定更弱算法、参数、矩阵、模数、阈值或验证 profile；
 - 在阶段 B 尝试通过 Router、提示注入或业务专家直接调用工具。
 
-首阶段不声称抵抗读取或修改模型权重、修改推理代码、删层、剪枝、微调、模型蒸馏、直接调用中间层、宿主机控制或物理侧信道。这些能力只有在后续明确扩展威胁模型并提供对应保护后才能纳入保证。
+首阶段不声称抵抗读取或修改模型权重、修改推理代码、删层、剪枝、微调、模型蒸馏、直接调用中间层、宿主机控制或物理侧信道。这些能力只有在后续明确扩展威胁模型并提供对应保护后才能纳入保证。V1-M2 可研究受信 state reload、module refactor、quantization、pruning、fine-tuning 或 export 后是否仍满足重新验收条件，但不得将这种 transform evaluation 写成对恶意模型改写者的防御。
 
 ## Trust boundaries
 
@@ -123,9 +126,37 @@ calls，但不阻止黑盒入口之外的直接模型调用，也不提供 crede
 
 ### Security-bearing Stage A
 
-安全承载版本应使用公开验证信息。验证器只返回结构化证据，例如 profile、绑定消息摘要和验证状态；它不能直接铸造 gate、capability 或权限 context。唯一协调器根据本地策略提交 allow/deny，并在 allow 后才调用业务网络。
+安全承载版本应使用公开验证信息。验证器只返回结构化证据，例如 profile、绑定消息摘要和验证状态；它不能直接铸造 gate、capability 或权限 context。唯一协调器根据本地策略提交 allow/deny，并在 allow 后才调用业务网络。V1-M1 已实现的组合对象 `AuthenticatedR2=(V_phi,C,f_theta)` 将固定神经 `V_phi` 作为模型内部 Gate Layer、将 `C` 作为内部可信协调器、将 `PROJECT_WORKLOG.md` 记录的 R2 `f_theta` 作为受保护分支；这不把 verifier 变成授权主体，也不允许请求方通过组合对象的公开入口直接选择 R2。
 
-“认证神经元/层”只表示固定验证网络模块，不是新的授权主体。线性映射、模距离、阈值和逻辑聚合可以在该模块中研究；本地 registry 仍固定算法、矩阵、阈值、量化 scale 和 profile，任何候选激活函数或网络构造都不能由请求方选择。
+“认证神经元/层”只表示固定验证网络模块，不是新的授权主体，也不要求它只有一个物理层。
+V1-C1 的 `V_phi` 由 exact relation、canonical domain 和可信公开 profile 确定性编译为多层
+affine/ReLU graph；topology、weights、bias 和阈值来自关系构造，不从 credential 样本训练。
+线性映射、模距离、阈值和逻辑聚合可以在该模块中研究；本地 registry 仍固定算法、矩阵、阈值、
+量化 scale 和 profile，任何候选激活函数或网络构造都不能由请求方选择。当前 V1-M1 主路线冻结
+Gate Layer 与 R2，不进行联合训练或 learned/soft gate；拒绝必须在 R2 forward 前返回固定 deny，
+不能使用 `gate * logits` 或输出遮蔽冒充零调用。
+
+NNAES 只提供“密码逻辑可确定性映射为固定神经图”的方法类比。其 AES round key 在构建时嵌入
+key-specific 执行网络；CAN 安全承载 verifier 不采用该密钥布局，只保存公开验证参数，签名私钥和
+长期 secret 必须留在模型之外。NNAES 类工作对非标准连续输入的攻击也意味着 canonical parser 是
+当前安全边界的组成部分：只有规范定长字节/有界整数进入 `V_phi`，域外实值不能继承域内
+`V_nn==V_ref` 证明。
+
+V1-M1-C1 保留为内部最小 reference/evaluator，不作为长期 public/protected 能力。C1 的 accepted-R2
+报告闭合后，M1-C2 才研究二专家 capability tiering：设冻结 R2 为
+`f_theta=d_theta o s_theta`，显式 public entry 只能执行 `E0=g_psi(s_theta(x))` 并返回预注册的
+粗粒度 public label；protected entry 仅在 A3-v2 coordinator 提交后执行
+`E1=d_theta(s_theta(x))`，且其 logits 必须与直接 R2 完全相同。public/reject path 不得执行 suffix、
+返回 prefix feature、protected logits 或可升级 token；protected protocol 失败、scope mismatch 或
+空授权结果必须 deny，不能回退至 public。`g_psi` 可独立训练，但 R2 `theta`、`V_phi` 和 credential
+relation 必须冻结。
+
+V1-M2 只在 C2 闭合后研究多受保护专家路由。固定 verifier 仍只产生 evidence；canonical claims
+由严格 parser 产生，唯一协调器依据可信本地 policy/registry 提交不可变 `RouteContext` 与
+`allowed_mask`。请求方、verifier、普通 MoE router 和业务专家均不能提交或扩大该 mask；task router
+只可在允许集合中选择。任何 `j > 0` 的专家实际执行都必须蕴含 reference verifier 接受、协调器已
+提交 `PROTECTED` 且 `j` 属于 credential 绑定 scope。上述性质只是在可信组合入口内的路由安全，
+不改变本文件对模型权重/推理图可改写者的不保证。
 
 A1 共同数值契约要求本地编译器以 A0 精确 `int64` 语义生成规范相位锚点，并固定 `int32`/scale `1` 的输入、残差、模距离、阈值和八路 AND 语义。modulo 的不连续边界必须逐分支证明或在完整有限域上直接证明，不能用随机差分准确率或未经证明的普通 Lipschitz 界替代。候选实现只有在证明逐分量总距离误差 `<=4`、阈值/AND 精确且全部非规范输入 fail closed 后，才能支持 `V_nn=1 -> V_ref=1` 主张。
 
@@ -234,7 +265,7 @@ valid proof 的并发提交最多一次 consume 和一次 protected call。consu
 
 ### Deferred neural construction hypotheses
 
-A1-C1 已决定主路线不使用 Secret Trigger 术语、普通 Floor/modulo/compare、Sigmoid、MASK 或显式 runtime `A*s`：主 relation 使用有界 exact ReLU 构造和折叠锚点，普通整数路线只作互斥测试基线。通用 sawtooth、LWE/SIS 兼容性和形式证明工具仍待后续研究，MASK 与层深能力映射仍延期到 A2；任何未实现候选都不允许进入当前安全主张或默认执行路径。
+A1-C1 已决定主路线不使用 Secret Trigger 术语、普通 Floor/modulo/compare、Sigmoid、MASK 或显式 runtime `A*s`：主 relation 使用有界 exact ReLU 构造和折叠锚点，普通整数路线只作互斥测试基线。通用 sawtooth、LWE/SIS 兼容性和形式证明工具仍待后续研究，MASK 与层深能力映射仍延期到 A2；任何未实现候选都不允许进入当前安全主张或默认执行路径。静态高熵 trigger 若未来实现，只能作为隔离的非密码 bearer-gate 对照，使用独立 parser、identifier 和测试，不与任一 exact/neural verifier 进行 `OR` 组合。
 
 无论延期评估结果如何，验证器只产生 evidence、协调器提交权限以及验证失败零受保护副作用是不可降级架构约束。MASK 或层内零化可以作为输出遮蔽对照实验，但不能与主验证路线进行 OR 回退，也不能替代调用 protected model 之前的协调器决定。
 
@@ -291,6 +322,11 @@ pre-commit 拒绝路径必须：
 entry 的任何输入或配置失败同样 deny，且不得调用 protected path。public、protected 与 deny
 必须具有互斥、稳定且可测试的 version-2 envelope，响应本身不具有授权能力。
 
+V1-M1-C2 沿用该三态语义作为二专家硬路由：`PUBLIC` 只调用 E0，`PROTECTED` 只调用 E1，
+`DENY` 不调用二者。V1-M2 在此基础上增加多个受保护 experts，但只能消费协调器已提交的
+`allowed_mask`；mask 为空、unknown expert、scope confusion、router tie/exception 或授权集合不足
+均必须在任何受保护 expert forward 前 fail closed，且不能自动降级到 E0。
+
 ## Audit and observability
 
 审计事件应使用稳定 schema，至少包含事件版本、时间、请求关联 ID、本地 profile、阶段、结构化结果码和 capability ID 摘要。不得记录私钥、完整凭据、原始签名、敏感业务输入、模型中间特征或可重放 token。
@@ -336,6 +372,8 @@ entry 的任何输入或配置失败同样 deny，且不得调用 protected path
 当前不保证：
 
 - A0 LWE unlock 的身份认证、不可伪造性或 replay 防护；
+- 任何静态 Secret Trigger、密码字符串或 bearer-gate 对照的身份认证、不可伪造性、anti-replay 或
+  与数字签名等价的安全性；
 - `A4-GPV-PFDH-TOY-v1` 的不可伪造性、生产安全参数或 GPV random-oracle 具体实例化证明；
 - V1-P2 格身份协议的 M-LWE/M-SIS concrete security、知识可靠性、主动冒充安全或授权安全；当前只
   实现非生产 exact/neural/A3-v2 conformance 与 toy generated-key/sampler/single-attempt/retry experiment；

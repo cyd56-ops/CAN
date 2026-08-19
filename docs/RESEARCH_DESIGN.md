@@ -23,12 +23,13 @@
 | Term | Meaning in this project | Claim limit |
 | --- | --- | --- |
 | Exact oracle | 使用精确整数语义实现的参考关系 `V_ref` | 只用于测试与证明，不承担最终访问控制 |
-| Neural verifier | 从固定密码参数编译、训练期间冻结的网络 `V_nn` | 必须说明输入域、数值语义和误差界 |
+| Neural verifier | 由 `V_ref`、规范输入域和可信 profile 确定性编译、构造后不可训练的固定网络 `V_nn` | 必须说明 canonical 输入域、离散数值语义、误差界和编译接受集合 |
 | LWE unlock | 使用 toy LWE 解密关系恢复授权比特 | 不是数字签名，不自动提供身份或不可伪造性 |
 | Authentication evidence | 验证器输出的结构化、无授权能力的证据 | 不能直接执行副作用或铸造 capability |
 | Authorization | 本地策略对身份、scope、资源和约束的决定 | 只能由唯一可信协调器提交 |
 | Capability | 与主体、模型、工具、参数、期限和 nonce 绑定的短期权限 | 必须由工具网关重新验证 |
-| Authentication neuron/layer | 对规范 credential 执行固定验证计算的研究性网络模块 | 是系统组织术语；A0 不据此声称身份认证，单个神经元也不能提交权限 |
+| Authentication neuron/layer | 对规范 credential 执行固定验证计算、并作为组合受保护模型中冻结子模块的网络 | 不训练、不直接授权；A0 不据此声称身份认证，单个神经元也不能提交权限 |
+| Secret-trigger gate | 对独立高熵静态字符串进行精确匹配的研究性 bearer-gate 对照 | 可重放、无身份/不可伪造性保证；不使用业务输入隐藏模式，不称为验签，不进入 V1 主路线 |
 | Public/protected capability | 由本地策略定义的公共与受保护模型能力 | 不预设它们必然对应浅层/深层神经表示 |
 | Signature verification | 使用公钥验证消息和签名的不可伪造认证关系 | 只有实现并证明对应安全游戏后才能使用该名称 |
 
@@ -42,7 +43,9 @@ A0 的 LWE 解密实验只研究数值正确性和门控语义。它不得在标
 - **H3, fail-closed gating:** 验证失败、输入畸形或落入数值模糊区时，不调用受保护业务能力，也不释放 logits 或中间特征。
 - **H4, request binding:** 在挑战响应或签名阶段，修改消息、模型、身份、scope、工具参数、时间或 nonce 的任一字段都会导致拒绝。
 - **H5, mandatory authorization path:** 在阶段 B，Router、规划专家和业务专家都无法绕过协调器与工具网关自行获得或提交权限。
-- **H6, tiered capability composition:** 在二元 protected-model 门控闭合后，协调器可以把拒绝受保护能力与授予独立 public capability 组合，而不泄露受保护路径的 logits、中间特征或副作用。
+- **H6, tiered capability composition:** 在 C1 二元 protected-model reference 闭合后，协调器可以在 C2
+  提交互斥的 public/protected/deny 二专家硬路由；后续 M2 只能在协调器提交的权限集合内选择多个
+  protected experts，不能扩大 credential 绑定的 scope。
 
 H1 可以通过证明、穷举 toy 域和差分测试共同支持。H2a-H6 涉及安全或能力隔离性质，不能仅用分类准确率或有限随机测试代替证明。
 
@@ -52,6 +55,13 @@ H1 可以通过证明、穷举 toy 域和差分测试共同支持。H2a-H6 涉�
 
 - `paper/How to Securely Implement Cryptography in Deep Neural Networks.pdf`：形式化密码功能的 ReLU DNN 实现，展示连续实数输入对自然密码实现的密钥恢复风险，并提出输入净化和输出掩码变换。
 - `paper/Planting Undetectable Backdoors in Machine Learning Models.pdf`：使用数字签名验证器构造神经网络中的不可复制触发机制；附录 C 给出基于格签名模方程的感知机/正弦验证网络。
+
+其中 NNAES 类工作（Gérault、Hambitzer、Ronen 和 Shamir，ePrint 2025/288）应被理解为“把 AES
+逻辑确定性编译成固定神经执行图”的方法参考：其 round key 在构建时展开并嵌入 key-specific 网络，
+不是从明文/密文样本学习出一个近似 AES。CAN 借用的是这种编译思想，不借用其密钥布局或安全结论。
+CAN 的验证器编译对象是公开验证关系，安全承载模型不保存签名私钥；NNAES 的固定执行网络也不自动
+成为业务模型的访问控制器。相关工作对非标准连续输入的攻击风险进一步说明：输入 canonicalization
+和 parser domain 是神经密码实现的安全边界，不能把合法比特域上的正确性外推到任意实值输入。
 
 因此，下列内容本身不构成项目创新：
 
@@ -110,20 +120,52 @@ untrusted request (x, credential bytes)
   -> fixed response envelope
 ```
 
-业务网络记为 `f_theta`，固定验证网络记为 `V_phi`。概念上的组合模型为：
+业务网络记为 `f_theta`，固定验证网络记为 `V_phi`。V1-M1 已构造物理组合对象 `AuthenticatedR2 = (V_phi, C, f_theta)`，而不是把二者放在模型外由调用方拼接：`V_phi` 是该对象的冻结神经 Gate Layer，`C` 是其内部的可信 transcript/authorization coordinator，`f_theta` 是由 `PROJECT_WORKLOG.md` 记录、在集成期保持冻结的 R2 业务分支。其二元行为为：
 
 ```text
 F(x, a) = f_theta(x)  when the coordinator commits allow
 F(x, a) = DENY        otherwise
 ```
 
-`phi` 由可信本地 profile 编译并冻结；业务训练只能更新 `theta`。验证器产生证据，协调器提交最终 gate。请求方不得提交 gate，也不得指定 `q`、矩阵、算法、阈值或弱化 profile。
+`phi` 由 `V_ref`、canonical domain 和可信本地 public profile 确定性编译并冻结；它不是从 credential
+样本训练出的 trigger classifier。V1-M1 集成阶段不训练 `phi`，也不重训或微调工作日志选定 R2 的
+`theta`。`V_phi` 只产生 evidence，`C` 仍是唯一提交 allow/deny 的组件；二者共同属于
+`AuthenticatedR2` 的内部受控路径。请求方不得提交 gate，也不得指定 `q`、矩阵、算法、阈值、量化
+scale 或弱化 profile。固定参数意味着构造后不可训练和部署 profile 不可变，不意味着抵抗白盒删层、
+改权重或直接调用受保护分支。
 
-credential 分支与业务特征 `x` 必须具有独立 schema、解析和调用边界。初步方案中的 “Secret Trigger” 是否适合作为研究术语留待后续评估；在基础阶段，无论采用何种名称，认证材料都按显式 credential 处理，不能依赖业务输入中的隐藏模式获得权限。
+credential 分支与业务特征 `x` 必须具有独立 schema、解析和调用边界。V1 的 credential 是显式、与图像分离的 challenge-response 材料：客户端先提交 commitment `u`，`AuthenticatedR2` 对保存的 image digest、model/profile、nonce 和 expiry 建立 challenge，客户端再提交 response `z`。Gate Layer 只处理规范 credential/transcript 字段，不消费业务图像 tensor；图像只由 adapter 摘要绑定并在 allow 后交给 R2。主路线不使用 Secret Trigger；若未来增加独立的高熵静态字符串对照，它只能表示可重放的 bearer-gate，不提供身份、不可伪造性或 anti-replay，不得依赖图像像素、纹理、提示词或普通业务特征中的隐藏模式，也不得通过后门训练实现。
 
-硬门控不能只是先计算 `f_theta(x)` 再用浮点数相乘。原型至少要通过可观测的调用计数证明拒绝路径没有调用受保护业务网络；如果框架限制导致只能遮蔽输出，论文必须把保证收缩为“黑盒输出不释放”，不得声称计算未发生。
+硬门控不能只是先计算 `f_theta(x)` 再用浮点数相乘，也不能用 `gate * logits`、输出遮蔽或 soft routing 伪装为调用前门控。`AuthenticatedR2` 必须在 `C` 提交 allow 后才调用 R2；拒绝路径返回固定 deny，且不执行 R2 forward、不释放 logits 或中间特征。原型至少要通过可观测的调用计数证明该性质；如果框架限制导致只能遮蔽输出，论文必须把保证收缩为“黑盒输出不释放”，不得声称计算未发生。
 
-能力分级分两步研究。第一步只实现 `DENY`/protected model 的二元门控，闭合验证与零受保护调用基础；第二步才允许协调器根据本地策略选择独立 public capability 或 protected capability。public capability 可以由独立模型、head 或服务入口实现，是否以及如何映射到浅层/深层表示属于后续实验问题。
+模型内能力路由按三个增量研究。`V1-M1-C1` 保留现有 `AuthenticatedR2` 作为内部最小 reference：
+它只验证 `DENY/protected`、accepted R2 logits 等价、请求绑定和拒绝零 R2 调用，不作为长期对外能力。
+`V1-M1-C2` 是第一个正式二专家硬路由：保持 accepted R2 `f_theta=d_theta o s_theta` 冻结，显式
+public entry 只执行 `E0=g_psi(s_theta(P(x)))`，受保护 entry 只有在协调器提交 `PROTECTED` 后才执行
+`E1=d_theta(s_theta(P(x)))`。protected verification failure、scope mismatch 或空授权结果必须
+`DENY`，不能 fallback 到 `E0`。C2 的首个 public task 是 CIFAR-100 20-class coarse superclass；
+public path 不返回 R2 logits、features 或可升级的 capability，R2 不得因 public task 重训或微调。
+
+`V1-M2` 只在 C2 闭合后把单个 `E1` 推广为多个 protected experts。固定 neural verifier 仍只产生
+evidence；canonical claims 由严格 parser 产生，唯一协调器依据可信本地 policy/registry 提交不可变
+`RouteContext` 和 `allowed_mask`，普通 MoE router 只能在该 mask 内选择。任何受保护专家 `E_j`
+实际执行都必须蕴含 `V_ref` 接受、协调器已提交 `PROTECTED` 且 `j` 属于 credential scope；请求方、
+verifier 和 router 均不能直接提交 mask、expert id 或授权 context。具体切分、head 训练、artifact、
+二专家与多专家验收由 `docs/V1_INTERNAL_CAPABILITY_TIERING_DECISION.md` 冻结。
+
+这里的“模型内”是 `V_phi`、共享 prefix、public head、protected suffix/experts 和协调器位于同一受控
+组合对象的工程与功能边界，不等同于白盒模型完整性保证。C2/M2 延续黑盒服务假设，不能抵抗读取/
+改写权重、删 Gate、直接调用 suffix/expert 或改写 inference graph。严格 parser、可信 profile、nonce
+状态和最终 authorization coordinator 仍必须位于神经子图边界，原因是 canonical byte encoding、
+replay 防护和副作用提交不能由无状态前馈网络单独完成。
+
+C2/M2 不使用 learned/soft authentication gate、`gate * logits`、输出遮蔽、图像 trigger、提示词
+trigger 或后门训练；M2 的 task router 可以学习任务得分，但没有权限提交能力。静态 Secret Trigger
+若作为后续对照，只能使用独立 protocol identifier、固定比较器和明确的 bearer/replay 限制；它不是
+显式 Module-SIS credential 的别名，也不进入 V1 主接受路径。state reload、module refactor、
+quantization、pruning、fine-tuning、export 或其他变换默认使 C2/M2 验收失效，必须针对该变换重新
+完成 neural relation、protected semantic-preservation 和 routing-isolation 验收。任意攻击者可改写
+模型的情形仍不属于首篇论文主张。
 
 ## 7. Stage A research increments
 
@@ -275,8 +317,7 @@ profile、coefficient-domain exact reference 与 A3-v2 已实现并通过 canoni
 replay/并发和零 protected-call 测试；非生产 generated-key、SHAKE256 samplers、single-attempt
 emit/abort、fresh-transcript retry、exhaustion、公开 manifest 与 exact differential 也已实现。固定
 `56 -> 11056 -> 17 -> 1` V1-C1 graph 已用 coefficient residual point pulses、norm violations 和 final
-hard AND 对全部 canonical input 证明 `V_nn==V_ref`，并已接入独立 A3-v2 neural evidence route。生产
-prover、密码安全参数、NTT、PyTorch/qint8/CUDA/export 和性能结论仍未实现。
+hard AND 对全部 canonical input 证明 `V_nn==V_ref`，并已作为 `AuthenticatedR2` 内部 Gate Layer 接入独立 A3-v2 neural evidence route，而不是把它改训为图像分类器或将业务图像送入该 graph。accepted-R2 正式 gate/latency 报告、生产 prover、密码安全参数、NTT、PyTorch/qint8/CUDA/export 和性能结论仍未实现。
 M-LWE public-key pseudorandomness、M-SIS knowledge soundness、A3 replay binding 和 neural soundness
 必须分别陈述。
 

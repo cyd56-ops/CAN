@@ -12,15 +12,19 @@ from torch import Tensor
 
 from can.access.a3_v2 import (
     A3_V2_RESPONSE_VERSION,
+    A3V2ChallengeSampler,
     A3V2DenyEnvelope,
     A3V2Envelope,
     A3V2ProtocolConfigError,
     A3V2ProtocolCoordinator,
     A3V2ProtocolSnapshot,
+    A3V2TranscriptStore,
     A3V2TrustedInput,
 )
+from can.access.v1_adapter import build_v1_a3_v2_neural_profile
 from can.model.v1_cifar100_resnet import V1Cifar100ResNet18
 from can.reference.v1 import V1_IDENTITY_SIZE
+from can.verifier.v1 import V1NeuralProfile
 
 V1_M1_MODEL_ID: Final = 0x0001_0001
 V1_M1_SCOPE_ID: Final = 1
@@ -186,6 +190,54 @@ class V1M1AccessCoordinator:
         return self._coordinator.snapshot()
 
 
+class AuthenticatedR2:
+    """组合固定 V1-C1 Gate Layer、唯一协调器与冻结 R2。"""
+
+    __slots__ = ("_access",)
+
+    def __init__(
+        self,
+        neural_profile: V1NeuralProfile,
+        model: V1Cifar100ResNet18,
+        *,
+        store: A3V2TranscriptStore | None = None,
+        challenge_sampler: A3V2ChallengeSampler | None = None,
+    ) -> None:
+        protected_operation = V1M1ProtectedOperation(model)
+        route = build_v1_a3_v2_neural_profile(
+            neural_profile,
+            model_id=V1_M1_MODEL_ID,
+            scope_id=V1_M1_SCOPE_ID,
+            input_profile_sha256=V1_M1_INPUT_PROFILE_SHA256,
+            protected_operation=protected_operation,
+        )
+        coordinator = A3V2ProtocolCoordinator(
+            (route,),
+            store=store,
+            challenge_sampler=challenge_sampler,
+        )
+        self._access = V1M1AccessCoordinator(
+            V1M1InputAdapter(neural_profile.identity_id),
+            coordinator,
+        )
+
+    def begin(self, image: object, commitment: object) -> A3V2Envelope:
+        """冻结规范图像快照并为 V1 commitment 签发一次 challenge。"""
+        return self._access.begin(image, commitment)
+
+    def respond(self, response: object) -> A3V2Envelope:
+        """由内部 Gate Layer 验证 response 并提交 deny 或一次 R2 调用。"""
+        return self._access.respond(response)
+
+    def abort(self, abort: object) -> A3V2DenyEnvelope:
+        """终结 pending transcript, 且不执行 R2。"""
+        return self._access.abort(abort)
+
+    def snapshot(self) -> A3V2ProtocolSnapshot:
+        """返回不含输入、logits、transcript 或 evidence 的组合计数。"""
+        return self._access.snapshot()
+
+
 def _deny_envelope() -> A3V2DenyEnvelope:
     return {"version": A3_V2_RESPONSE_VERSION, "status": "deny"}
 
@@ -199,6 +251,7 @@ __all__ = [
     "V1_M1_NORMALIZATION_MEAN",
     "V1_M1_NORMALIZATION_STD",
     "V1_M1_SCOPE_ID",
+    "AuthenticatedR2",
     "V1M1AccessCoordinator",
     "V1M1InputAdapter",
     "V1M1InputError",

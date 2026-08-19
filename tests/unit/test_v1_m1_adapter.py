@@ -13,12 +13,15 @@ from can.access import (
     V1_M1_NORMALIZATION_STD,
     V1_M1_SCOPE_ID,
     A3V2ProtocolConfigError,
+    AuthenticatedR2,
     V1M1InputAdapter,
     V1M1InputError,
     V1M1ProtectedOperation,
 )
 from can.access.v1_m1_adapter import _preprocess_v1_m1_snapshot, _V1M1ImageSnapshot
 from can.model import V1Cifar100ResNet18
+from can.reference import build_v1_conformance_profile
+from can.verifier import compile_v1_neural_profile
 
 IDENTITY = bytes(range(32))
 
@@ -120,3 +123,19 @@ def test_protected_operation_rejects_training_mode_model_at_construction() -> No
     """受保护 inference operation 只能持有已进入 eval 的可信模型。"""
     with pytest.raises(A3V2ProtocolConfigError):
         V1M1ProtectedOperation(V1Cifar100ResNet18())
+
+
+def test_authenticated_r2_constructs_only_from_fixed_neural_profile_and_eval_model() -> None:
+    """组合入口必须固定 neural route, 且初始状态不含任何授权或 R2 调用。"""
+    model = V1Cifar100ResNet18().eval()
+    profile = compile_v1_neural_profile(build_v1_conformance_profile(IDENTITY))
+
+    authenticated = AuthenticatedR2(profile, model)
+
+    snapshot = authenticated.snapshot()
+    assert snapshot.challenge_issues == 0
+    assert snapshot.verifier_calls == 0
+    assert snapshot.allow_commits == 0
+    assert snapshot.protected_calls == 0
+    with pytest.raises(A3V2ProtocolConfigError):
+        AuthenticatedR2(None, model)  # type: ignore[arg-type]
