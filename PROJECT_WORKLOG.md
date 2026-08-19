@@ -471,7 +471,8 @@ C2 public-head 正式训练、accepted-state 分层报告及后续 M2 正式模�
 - **Git publication status:** `origin` 已使用 SSH URL `git@github.com:cyd56-ops/CAN.git`；项目负责人明确授权直推
   `main` 后，`git push -u origin main` 成功将 `ae79db1..c6c38df` 推送至远端，并建立
   `main -> origin/main` upstream。推送内容经 staged diff 检查与敏感模式扫描，不含数据、weights、artifact、
-  private key、GitHub token 或 AWS access key。
+  private key、GitHub token 或 AWS access key。C1 evaluator checkpoint `b1a8340aee3af8316dc78cd8b93e3de46a3754f4`
+  已由 `main` 推送至 `origin/main`；本地服务器操作手册、`AGENTS.md` 和 `ara/` 未纳入该推送。
 - **V1-M1 experiment status:** 已授权 AutoDL A4000 容器完成 R1/R2。R1 selected epoch `187`、validation top-1 `78.0000%`、test top-1 `77.0800%`、state SHA-256 `749a71dbee7e8ce7a7c842f168379befa477641de3ad5c94c3924f3843eb71ad`；R2 selected epoch `175`、validation top-1 `78.1000%`、test top-1 `77.6100%`、state SHA-256 `c0733e293c398f58edd3ae6c6cb5c9c217572274b095cb9c4ace282f5c101343`。两者 full artifact verification 与 cross-run manifest 均 PASS，R2 依 validation-only rule 被接受。C1 no-training evaluator 的本地 source/unit/focused tests 已完成，但该状态未复制到仓库，真实 10,000-image gate/性能测量尚未执行。
 - **Artifact lifecycle:** D-024 重新物化的两个 `state_dict`、manifest 和 `capability.json` 只位于
   ignored `artifacts/a2/`；它们不得提交、上传或进入发布包。任何删除后的再次生成都必须重跑固定
