@@ -390,7 +390,11 @@ def _load_pickle(path: Path) -> dict[str, object]:
     return cast(dict[str, object], value)
 
 
-def _decode_split(path: Path, *, expected_size: int) -> tuple[Tensor, Tensor]:
+def _decode_split_with_coarse(
+    path: Path,
+    *,
+    expected_size: int,
+) -> tuple[Tensor, Tensor, Tensor]:
     value = _load_pickle(path)
     if set(value) != {"batch_label", "coarse_labels", "data", "filenames", "fine_labels"}:
         raise V1M1BaselineError("V1-M1 decoded CIFAR-100 split fields changed")
@@ -424,6 +428,13 @@ def _decode_split(path: Path, *, expected_size: int) -> tuple[Tensor, Tensor]:
         .clone(memory_format=torch.contiguous_format)
     )
     labels = torch.tensor(fine_labels, dtype=torch.int64)
+    coarse = torch.tensor(coarse_labels, dtype=torch.int64)
+    return pixels, labels, coarse
+
+
+def _decode_split(path: Path, *, expected_size: int) -> tuple[Tensor, Tensor]:
+    """解析固定 CIFAR split 并保持 baseline 的 fine-label 返回契约。"""
+    pixels, labels, _coarse = _decode_split_with_coarse(path, expected_size=expected_size)
     return pixels, labels
 
 

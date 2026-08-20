@@ -19,9 +19,13 @@ from can.access import (
     A3_V2_CHALLENGE_TTL_MS,
     A3_V2_MESSAGE_SIZE,
     A3V2ChallengeEnvelope,
+    A3V2ExecutionState,
+    A3V2InternalResultCode,
     A3V2Message,
     A3V2ProtocolCoordinator,
     A3V2ProtocolInputError,
+    A3V2RouteDecision,
+    A3V2StateError,
     A3V2TrustedInput,
     compute_a3_v2_binding_digest,
     compute_a3_v2_transcript_id,
@@ -105,6 +109,47 @@ def test_valid_response_claims_once_and_calls_stored_snapshot_once() -> None:
     assert snapshot.protected_calls == 1
 
 
+def test_internal_result_delivers_operation_value_exactly_once() -> None:
+    """可信 adapter 只能从成功的内部结果取得一次 operation value。"""
+    operation_value = object()
+    recorder = V1ProtectedRecorder(result=operation_value)
+    coordinator, profile, _, _ = build_v1_coordinator(recorder=recorder)
+    issued = coordinator.begin(
+        build_v1_trusted_input(), build_v1_accepting_commitment(profile).encode()
+    )
+    assert issued["status"] == "challenge"
+    response = V1Response(issued["transcript_id"], V1_TEST_RESPONSE).encode()
+
+    result = coordinator.commit_and_execute(response)
+
+    assert result.route_decision is A3V2RouteDecision.PROTECTED
+    assert result.execution_state is A3V2ExecutionState.SUCCEEDED
+    assert result.code is A3V2InternalResultCode.PROTECTED_SUCCEEDED
+    assert result.consume_operation_value() is operation_value
+    with pytest.raises(A3V2StateError, match="already consumed"):
+        result.consume_operation_value()
+    snapshot = coordinator.snapshot()
+    assert snapshot.allow_commits == 1
+    assert snapshot.protected_calls == 1
+    assert snapshot.protected_responses == 0
+
+
+def test_c1_response_discards_internal_value_and_remains_status_only() -> None:
+    """C1 adapter 必须丢弃 callback value 且保持原 version-4 schema。"""
+    recorder = V1ProtectedRecorder(result={"logits": [1.0, 2.0]})
+    coordinator, profile, _, _ = build_v1_coordinator(recorder=recorder)
+    issued = coordinator.begin(
+        build_v1_trusted_input(), build_v1_accepting_commitment(profile).encode()
+    )
+    assert issued["status"] == "challenge"
+    response = V1Response(issued["transcript_id"], V1_TEST_RESPONSE).encode()
+
+    result = coordinator.respond(response)
+
+    assert result == {"version": 4, "status": "protected"}
+    assert tuple(result) == ("version", "status")
+
+
 def test_relation_reject_is_terminal_and_valid_retry_cannot_run() -> None:
     """同一 transcript 的首个 parsed response 即使无效也必须终结状态。"""
     coordinator, issued, recorder, _ = _begin()
@@ -122,6 +167,27 @@ def test_relation_reject_is_terminal_and_valid_retry_cannot_run() -> None:
     snapshot = coordinator.snapshot()
     assert snapshot.terminal_claims == 1
     assert snapshot.verifier_calls == 1
+    assert snapshot.protected_calls == 0
+
+
+def test_internal_relation_reject_is_pre_execution_deny() -> None:
+    """relation reject 必须表示为尚未开始业务执行的内部 DENY。"""
+    coordinator, issued, recorder, _ = _begin()
+    invalid_values = [list(polynomial) for polynomial in V1_TEST_RESPONSE]
+    invalid_values[0][0] += 1
+    invalid = V1Response(issued["transcript_id"], invalid_values).encode()
+
+    result = coordinator.commit_and_execute(invalid)
+
+    assert result.route_decision is A3V2RouteDecision.DENY
+    assert result.execution_state is A3V2ExecutionState.NOT_STARTED
+    assert result.code is A3V2InternalResultCode.VERIFICATION_REJECTED
+    with pytest.raises(A3V2StateError, match="no successful operation value"):
+        result.consume_operation_value()
+    assert recorder.snapshots == []
+    snapshot = coordinator.snapshot()
+    assert snapshot.verifier_calls == 1
+    assert snapshot.allow_commits == 0
     assert snapshot.protected_calls == 0
 
 
@@ -231,6 +297,30 @@ def test_post_commit_operation_failure_is_one_call_without_retry() -> None:
     assert len(recorder.snapshots) == 1
     snapshot = coordinator.snapshot()
     assert snapshot.allow_commits == 1
+    assert snapshot.protected_calls == 1
+    assert snapshot.protected_responses == 0
+
+
+def test_internal_result_distinguishes_post_commit_execution_failure() -> None:
+    """受保护 callback 异常必须保留 PROTECTED/FAILED 内部状态。"""
+    recorder = V1ProtectedRecorder(fail=True)
+    coordinator, profile, _, _ = build_v1_coordinator(recorder=recorder)
+    issued = coordinator.begin(
+        build_v1_trusted_input(), build_v1_accepting_commitment(profile).encode()
+    )
+    assert issued["status"] == "challenge"
+    response = V1Response(issued["transcript_id"], V1_TEST_RESPONSE).encode()
+
+    result = coordinator.commit_and_execute(response)
+
+    assert result.route_decision is A3V2RouteDecision.PROTECTED
+    assert result.execution_state is A3V2ExecutionState.FAILED
+    assert result.code is A3V2InternalResultCode.PROTECTED_EXECUTION_ERROR
+    with pytest.raises(A3V2StateError, match="no successful operation value"):
+        result.consume_operation_value()
+    snapshot = coordinator.snapshot()
+    assert snapshot.allow_commits == 1
+    assert snapshot.deny_commits == 0
     assert snapshot.protected_calls == 1
     assert snapshot.protected_responses == 0
 

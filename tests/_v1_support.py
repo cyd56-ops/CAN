@@ -49,6 +49,7 @@ class V1ProtectedRecorder:
     """记录受保护 callback 的调用次数与 snapshot。"""
 
     fail: bool = False
+    result: object = None
     snapshots: list[object] = field(default_factory=list)
 
     def __call__(self, snapshot: object) -> object:
@@ -56,7 +57,7 @@ class V1ProtectedRecorder:
         self.snapshots.append(snapshot)
         if self.fail:
             raise RuntimeError("synthetic protected operation failure")
-        return None
+        return self.result
 
 
 class V1NonceSource:

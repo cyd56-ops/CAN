@@ -20,6 +20,7 @@ readonly v1_protocol_file="docs/V1_PROTOCOL_SELECTION_DECISION.md"
 readonly v1_module_protocol_file="docs/V1_MODULE_SIS_PROTOCOL_DECISION.md"
 readonly v1_prover_sampler_file="docs/V1_PROVER_SAMPLER_REJECTION_SPEC.md"
 readonly v1_model_experiment_file="docs/V1_MODEL_EXPERIMENT_DECISION.md"
+readonly v1_capability_tiering_file="docs/V1_INTERNAL_CAPABILITY_TIERING_DECISION.md"
 
 bootstrap_files=(
     ".gitignore"
@@ -118,7 +119,8 @@ for file in \
     "$v1_protocol_file" \
     "$v1_module_protocol_file" \
     "$v1_prover_sampler_file" \
-    "$v1_model_experiment_file"; do
+    "$v1_model_experiment_file" \
+    "$v1_capability_tiering_file"; do
     if [[ ! -s "$file" ]]; then
         echo "missing or empty required file: $file" >&2
         exit 1
@@ -457,6 +459,21 @@ v1_model_experiment_headings=(
     "## 18. Acceptance criteria for this decision"
 )
 
+v1_capability_tiering_headings=(
+    "# V1-M1-C2 and V1-M2 Internal Capability Tiering Decision"
+    "## 1. Status and decision"
+    "## 2. Threat model and claim boundary"
+    "## 3. Frozen architecture and entry contract"
+    "## 4. Route decision and execution state"
+    "## 5. A3-v2 internal result compatibility"
+    "## 6. Public capability, cut and training selection"
+    "## 7. Protected semantic preservation"
+    "## 8. Hard dispatcher, counters and event evidence"
+    "## 9. Test, report and artifact obligations"
+    "## 10. Transformation and M2 boundary"
+    "## 11. Implementation increments and resources"
+)
+
 for heading in "${agent_headings[@]}"; do
     if ! rg --fixed-strings --line-regexp --quiet "$heading" "$agent_file"; then
         echo "missing AGENTS.md heading: $heading" >&2
@@ -576,6 +593,33 @@ for heading in "${v1_model_experiment_headings[@]}"; do
     fi
 done
 
+for heading in "${v1_capability_tiering_headings[@]}"; do
+    if ! rg --fixed-strings --line-regexp --quiet "$heading" "$v1_capability_tiering_file"; then
+        echo "missing V1 capability-tiering heading: $heading" >&2
+        exit 1
+    fi
+done
+
+c2_contract_markers=(
+    "handle_public(image)"
+    "begin_protected(image, commitment)"
+    "RouteDecision = PUBLIC | PROTECTED | DENY"
+    "ExecutionState = NOT_STARTED | RUNNING | SUCCEEDED | FAILED"
+    "InternalExecutionResult"
+    '"version": 5'
+    '>=75.00%'
+    "layer2 < layer3 < layer4"
+    'C1 version-4'
+    'SERVER_REQUIRED'
+)
+
+for marker in "${c2_contract_markers[@]}"; do
+    if ! rg --fixed-strings --quiet "$marker" "$v1_capability_tiering_file"; then
+        echo "missing V1 capability-tiering contract marker: $marker" >&2
+        exit 1
+    fi
+done
+
 route_files=(
     "$readme_file"
     "$worklog_file"
@@ -588,6 +632,7 @@ route_files=(
     "$v1_module_protocol_file"
     "$v1_prover_sampler_file"
     "$v1_model_experiment_file"
+    "$v1_capability_tiering_file"
 )
 
 for file in "${route_files[@]}"; do

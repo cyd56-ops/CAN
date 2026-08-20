@@ -43,9 +43,10 @@ A0 的 LWE 解密实验只研究数值正确性和门控语义。它不得在标
 - **H3, fail-closed gating:** 验证失败、输入畸形或落入数值模糊区时，不调用受保护业务能力，也不释放 logits 或中间特征。
 - **H4, request binding:** 在挑战响应或签名阶段，修改消息、模型、身份、scope、工具参数、时间或 nonce 的任一字段都会导致拒绝。
 - **H5, mandatory authorization path:** 在阶段 B，Router、规划专家和业务专家都无法绕过协调器与工具网关自行获得或提交权限。
-- **H6, tiered capability composition:** 在 C1 二元 protected-model reference 闭合后，协调器可以在 C2
-  提交互斥的 public/protected/deny 二专家硬路由；后续 M2 只能在协调器提交的权限集合内选择多个
-  protected experts，不能扩大 credential 绑定的 scope。
+- **H6, tiered capability composition:** 在 C1 二元 protected-model reference 闭合后，C2 可以通过
+  可信双入口和执行前 hard dispatcher 提交互斥的 public/protected/deny 二专家 route decision，并把
+  pre-execution deny 与已提交 route 的 execution failure 分开；后续 M2 只能在协调器提交的权限集合内
+  选择多个 protected experts，不能扩大 credential 绑定的 scope。
 
 H1 可以通过证明、穷举 toy 域和差分测试共同支持。H2a-H6 涉及安全或能力隔离性质，不能仅用分类准确率或有限随机测试代替证明。
 
@@ -145,6 +146,16 @@ public entry 只执行 `E0=g_psi(s_theta(P(x)))`，受保护 entry 只有在协�
 `E1=d_theta(s_theta(P(x)))`。protected verification failure、scope mismatch 或空授权结果必须
 `DENY`，不能 fallback 到 `E0`。C2 的首个 public task 是 CIFAR-100 20-class coarse superclass；
 public path 不返回 R2 logits、features 或可升级的 capability，R2 不得因 public task 重训或微调。
+双入口由可信部署绑定，请求 payload 不能选择 entry/cut/head/profile/threshold/decision。public utility
+预注册为 validation/test coarse top-1 `>=75.00%`；H1 对 `layer2/layer3/layer4` 全部训练并选择首个达标
+cut，H2 只复验选中 cut，两次 validation 差不得超过 `2.00` percentage points，test 只评估最终 head
+一次。C2 使用 version-5 challenge/public/protected/deny envelope，但保持 A3-v2 canonical transcript 和
+C1 version-4 status-only API 不变。
+
+C2 内部把 `RouteDecision=PUBLIC|PROTECTED|DENY` 与
+`ExecutionState=NOT_STARTED|RUNNING|SUCCEEDED|FAILED` 正交表示。`DENY` 只描述业务执行开始前的拒绝；
+协调器已提交 `PROTECTED` 后的 preprocessing/prefix/suffix/result 异常属于
+`PROTECTED_EXECUTION_ERROR`，必须记录已开始的真实调用、禁止 fallback，并且不释放 logits/features。
 
 `V1-M2` 只在 C2 闭合后把单个 `E1` 推广为多个 protected experts。固定 neural verifier 仍只产生
 evidence；canonical claims 由严格 parser 产生，唯一协调器依据可信本地 policy/registry 提交不可变
@@ -317,7 +328,7 @@ profile、coefficient-domain exact reference 与 A3-v2 已实现并通过 canoni
 replay/并发和零 protected-call 测试；非生产 generated-key、SHAKE256 samplers、single-attempt
 emit/abort、fresh-transcript retry、exhaustion、公开 manifest 与 exact differential 也已实现。固定
 `56 -> 11056 -> 17 -> 1` V1-C1 graph 已用 coefficient residual point pulses、norm violations 和 final
-hard AND 对全部 canonical input 证明 `V_nn==V_ref`，并已作为 `AuthenticatedR2` 内部 Gate Layer 接入独立 A3-v2 neural evidence route，而不是把它改训为图像分类器或将业务图像送入该 graph。accepted-R2 正式 gate/latency 报告、生产 prover、密码安全参数、NTT、PyTorch/qint8/CUDA/export 和性能结论仍未实现。
+hard AND 对全部 canonical input 证明 `V_nn==V_ref`，并已作为 `AuthenticatedR2` 内部 Gate Layer 接入独立 A3-v2 neural evidence route，而不是把它改训为图像分类器或将业务图像送入该 graph。2026-08-19 已完成 accepted-R2 无训练 gate/latency 报告；生产 prover、密码安全参数、NTT、PyTorch/qint8/CUDA/export 和跨设备/生产性能结论仍未实现。
 M-LWE public-key pseudorandomness、M-SIS knowledge soundness、A3 replay binding 和 neural soundness
 必须分别陈述。
 
@@ -416,12 +427,15 @@ capability 至少绑定：主体、模型、工具、资源、实际参数或参
 - 输入、身份、model ID、scope、工具参数和 nonce 篡改；
 - replay、并发 nonce 复用、过期和跨模型复用；
 - 软门控泄漏、直接调用业务网络和 Router 绕过；
+- C2 public/protected 双入口 confusion、version-4/version-5 schema confusion、请求选择 cut/head/threshold、
+  pre-execution deny 零业务调用、post-commit execution error 准确计数和并发单次结果释放；
 - 量化、剪枝、微调和模型导出后的性质退化。
 
 ### Construction and capability comparisons
 
 - 二元 `DENY`/protected gate 与 public/protected capability 分级；
-- A2-E2 主路线的独立 public model；独立 head、共享 trunk 与浅层/深层只保留为后续比较；
+- A2-E2 主路线的独立 public model，以及 C2 冻结共享 R2 prefix、独立 coarse public head 与
+  `layer2/layer3/layer4` stage-boundary cut；
 - `CAN-RELU-EXACT-v1` 与普通整数 exact-ops 基线；
 - 主 ReLU 构造与后续可选 Sigmoid、通用 sawtooth 或 MASK 非安全对照；
 - 主锚点常量折叠与 compiler audit 中的显式矩阵算术；
@@ -504,7 +518,8 @@ docs/            protocol, proof obligations and experiment reports
 
 ## 14. Open decisions
 
-- 独立模型主路线闭合后，是否值得另设 checkpoint 比较独立 head、共享 trunk 或浅层/深层表示；
+- C2 闭合后是否执行预注册 attacker auxiliary data 的 coarse-prior/image-only/image-plus-public-output
+  capability-leakage 对照；只有提出 fine-grained semantic secrecy 主张时才成为必需；
 - LWE/SIS 派生关系相对其他密码关系是否更适合神经编译；
 - MASK/层内零化只作为输出遮蔽对照还是能支持更窄的实验主张；其结果不得替代协调器前置硬门控；
 - V1-P2 的密码安全参数和 reviewed library adapter；fresh-transcript retry 与 toy 统计 harness 已闭合；

@@ -37,8 +37,9 @@ fresh-transcript retry harness、公开摘要 manifest 和 exact differential。
 现已将固定公开 profile 编译为 dependency-free exact integer affine/ReLU graph
 `56 -> 11056 -> 17 -> 1`，以 coefficient residual point pulses、norm violations 和最终硬 AND
 实现 V1-P2 relation；neural adapter 只产生 A3-v2 evidence，accept 最多一次 protected call，relation
-reject 与 foreign-route bytes 均为零 protected calls。生产 keygen/prover、密码安全参数、NTT、
-PyTorch/qint8/CUDA/export 和性能结论仍未实现。
+reject 与 foreign-route bytes 均为零 protected calls。C1 accepted-R2 无训练服务器报告已完成 10,000-image
+direct/gated 等价、拒绝隔离和分段 latency/throughput；生产 keygen/prover、密码安全参数、NTT、
+PyTorch/qint8/CUDA/export 和跨设备/生产性能结论仍未实现。
 
 长期路线固定为 `V0 -> V1-prep -> V1 -> V2`：V0 是 A0/A1/A2 toy LWE 数值解锁与硬门控；V1-prep
 是 A3 请求绑定/新鲜性和 A4 canonical `(y,z)` 神经代数内核；V1-P2 已完成 reviewed Module-SIS
@@ -46,8 +47,12 @@ challenge-response/身份协议选择和非生产 exact/A3-v2 conformance 协议
 generated-key/sampler/single-attempt/retry 实验边界及 `V1-C1-MSIS` coefficient-domain neural
 construction。V1-M1 的 AutoDL A4000 GPU/software tuple 以及 CIFAR-100 的权威来源、摘要、许可边界、
 数据切分、预处理、训练超参数和预注册阈值均已冻结；独立 V1-M1 model/archive parser/adapter/runner、
-ignored state/manifest/report writer 与 unit/security tests 已在本机实现且未下载数据。下一步的首次正式数据下载
-和 CIFAR-100/ResNet-18 baseline 为 `SERVER_REQUIRED`，只能在已冻结的 AutoDL A4000 环境执行。V2 才研究 ML-DSA 标准 verifier。V0、V1 和 V2 必须作为独立
+ignored state/manifest/report writer 与 unit/security tests 已在本机实现；R1/R2 baseline 与 C1 accepted-R2
+报告已在冻结的 AutoDL A4000 环境完成，artifact/data/state 仍不进入仓库。C2 已冻结可信双入口、
+`layer2/layer3/layer4` cut、75% public-head 规则、version-5 schema、route/execution 正交状态和精确
+调用矩阵；A3-v2 内部结果兼容 refactor 已完成，下一步是 `LOCAL_OK` 的 split/composition 与 hard
+dispatcher。C2 正式 public-head 训练和后续模型报告才进入 `SERVER_REQUIRED`。V2 才研究
+ML-DSA 标准 verifier。V0、V1 和 V2 必须作为独立
 可复现代码路线共存，后续路线不得
 重命名、改写或覆盖前序路线。V1-prep 不提供身份认证，V2 不属于首篇论文 MVP。
 

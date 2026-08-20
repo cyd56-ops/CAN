@@ -6,7 +6,7 @@ import hashlib
 import secrets
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from threading import Lock, RLock
 from typing import Final, Literal, TypeAlias, TypedDict
@@ -73,6 +73,36 @@ class A3V2EvidenceCode(Enum):
     CONFIG_REJECT = "config_reject"
 
 
+class A3V2RouteDecision(Enum):
+    """表示 A3-v2 协调器已经提交的内部 route decision。"""
+
+    DENY = "deny"
+    PUBLIC = "public"
+    PROTECTED = "protected"
+
+
+class A3V2ExecutionState(Enum):
+    """表示已提交 route 的业务执行状态。"""
+
+    NOT_STARTED = "not_started"
+    RUNNING = "running"
+    SUCCEEDED = "succeeded"
+    FAILED = "failed"
+
+
+class A3V2InternalResultCode(Enum):
+    """表示不进入公共响应的稳定内部结果码。"""
+
+    INVALID_RESPONSE = "invalid_response"
+    TRANSCRIPT_UNAVAILABLE = "transcript_unavailable"
+    TRANSCRIPT_EXPIRED = "transcript_expired"
+    ROUTE_UNAVAILABLE = "route_unavailable"
+    VERIFICATION_REJECTED = "verification_rejected"
+    INTERNAL_STATE_ERROR = "internal_state_error"
+    PROTECTED_SUCCEEDED = "protected_succeeded"
+    PROTECTED_EXECUTION_ERROR = "protected_execution_error"
+
+
 class A3V2ProtocolConfigError(ValueError):
     """表示 A3-v2 本地可信 route 配置不满足固定契约。"""
 
@@ -83,6 +113,54 @@ class A3V2ProtocolInputError(ValueError):
 
 class A3V2StateError(RuntimeError):
     """表示 A3-v2 可信时钟、随机源或 transcript state 失败。"""
+
+
+class A3V2ProtectedExecutionError(RuntimeError):
+    """表示受保护 callback 已提交后在固定阶段失败。"""
+
+    __slots__ = ("stage",)
+
+    def __init__(self, stage: str) -> None:
+        if type(stage) is not str or not stage:
+            raise A3V2StateError("A3-v2 execution error stage is not canonical")
+        super().__init__(stage)
+        self.stage = stage
+
+
+@dataclass(slots=True)
+class _A3V2OperationValue:
+    value: object
+    consumed: bool = False
+    lock: Lock = field(default_factory=Lock)
+
+
+@dataclass(frozen=True, slots=True)
+class A3V2InternalExecutionResult:
+    """保存协调器提交的 route、执行状态和一次性交付值。"""
+
+    route_decision: A3V2RouteDecision
+    execution_state: A3V2ExecutionState
+    code: A3V2InternalResultCode
+    failure_stage: str | None = None
+    _operation_value: _A3V2OperationValue | None = field(default=None, repr=False)
+
+    def consume_operation_value(self) -> object:
+        """只允许可信 adapter 取得一次成功的 protected operation value。"""
+        delivery = self._operation_value
+        if (
+            self.route_decision is not A3V2RouteDecision.PROTECTED
+            or self.execution_state is not A3V2ExecutionState.SUCCEEDED
+            or self.code is not A3V2InternalResultCode.PROTECTED_SUCCEEDED
+            or delivery is None
+        ):
+            raise A3V2StateError("A3-v2 result has no successful operation value")
+        with delivery.lock:
+            if delivery.consumed:
+                raise A3V2StateError("A3-v2 operation value was already consumed")
+            value = delivery.value
+            delivery.value = None
+            delivery.consumed = True
+            return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -440,6 +518,14 @@ def _deny_envelope() -> A3V2DenyEnvelope:
     return {"version": A3_V2_RESPONSE_VERSION, "status": "deny"}
 
 
+def _internal_deny_result(code: A3V2InternalResultCode) -> A3V2InternalExecutionResult:
+    return A3V2InternalExecutionResult(
+        A3V2RouteDecision.DENY,
+        A3V2ExecutionState.NOT_STARTED,
+        code,
+    )
+
+
 class A3V2ProtocolCoordinator:
     """以唯一协调器提交 A3-v2 终态决定并执行受保护操作。"""
 
@@ -523,14 +609,21 @@ class A3V2ProtocolCoordinator:
             else:
                 self._challenge_denies += 1
 
-    def _record_deny(self, *, terminal: bool = False, expired: bool = False) -> None:
+    def _record_deny(
+        self,
+        *,
+        terminal: bool = False,
+        expired: bool = False,
+        response: bool = True,
+    ) -> None:
         with self._lock:
             if terminal:
                 self._terminal_claims += 1
             if expired:
                 self._expiry_count += 1
             self._deny_commits += 1
-            self._deny_responses += 1
+            if response:
+                self._deny_responses += 1
 
     def begin(self, trusted_input: object, raw_commitment: object) -> A3V2Envelope:
         """验证 commitment, 并在可信业务摘要已冻结后签发 server challenge。"""
@@ -601,28 +694,38 @@ class A3V2ProtocolCoordinator:
             self._record_challenge(False)
             return _deny_envelope()
 
-    def respond(self, raw_response: object) -> A3V2Envelope:
-        """原子 claim 一个 parsed response, 验证后至多执行一次受保护操作。"""
+    def commit_and_execute(self, raw_response: object) -> A3V2InternalExecutionResult:
+        """原子 claim、提交 route, 并返回一次性交付的内部执行结果。"""
         terminal_claimed = False
         try:
             response = parse_v1_response(raw_response)
+        except Exception:
+            self._record_deny(response=False)
+            return _internal_deny_result(A3V2InternalResultCode.INVALID_RESPONSE)
+        try:
             record, outcome = self._store._claim(
                 response.transcript_id,
                 terminal_state="CLAIMED",
             )
             if outcome == "expired":
-                self._record_deny(terminal=True, expired=True)
-                return _deny_envelope()
+                self._record_deny(terminal=True, expired=True, response=False)
+                return _internal_deny_result(A3V2InternalResultCode.TRANSCRIPT_EXPIRED)
             if outcome != "claimed" or record is None:
-                raise A3V2ProtocolInputError("A3-v2 transcript is unavailable")
+                self._record_deny(response=False)
+                return _internal_deny_result(A3V2InternalResultCode.TRANSCRIPT_UNAVAILABLE)
             terminal_claimed = True
+        except Exception:
+            self._record_deny(response=False)
+            return _internal_deny_result(A3V2InternalResultCode.INTERNAL_STATE_ERROR)
+        try:
             route = self._profiles.get(record.identity_id)
             if (
                 route is None
                 or route.verification_profile_sha256 != record.verification_profile_sha256
                 or route.input_profile_sha256 != record.input_profile_sha256
             ):
-                raise A3V2ProtocolConfigError("A3-v2 pending route is no longer configured")
+                self._record_deny(terminal=True, response=False)
+                return _internal_deny_result(A3V2InternalResultCode.ROUTE_UNAVAILABLE)
             with self._lock:
                 self._verifier_calls += 1
             response_bytes = response.encode()
@@ -642,29 +745,65 @@ class A3V2ProtocolCoordinator:
                 or evidence.response_sha256 != hashlib.sha256(response_bytes).digest()
                 or evidence.transcript_id != record.transcript_id
             ):
-                raise A3V2ProtocolInputError("A3-v2 evidence is not an exact bound accept")
+                self._record_deny(terminal=True, response=False)
+                return _internal_deny_result(A3V2InternalResultCode.VERIFICATION_REJECTED)
             if record.snapshot is None:
-                raise A3V2StateError("A3-v2 claimed record lost its trusted snapshot")
+                self._record_deny(terminal=True, response=False)
+                return _internal_deny_result(A3V2InternalResultCode.INTERNAL_STATE_ERROR)
             with self._lock:
                 self._terminal_claims += 1
                 self._allow_commits += 1
                 self._protected_calls += 1
             try:
-                route.protected_operation(record.snapshot)
-                with self._lock:
-                    self._protected_responses += 1
-                protected: A3V2ProtectedEnvelope = {
-                    "version": A3_V2_RESPONSE_VERSION,
-                    "status": "protected",
-                }
-                return protected
+                value = route.protected_operation(record.snapshot)
+                return A3V2InternalExecutionResult(
+                    A3V2RouteDecision.PROTECTED,
+                    A3V2ExecutionState.SUCCEEDED,
+                    A3V2InternalResultCode.PROTECTED_SUCCEEDED,
+                    None,
+                    _A3V2OperationValue(value),
+                )
+            except A3V2ProtectedExecutionError as error:
+                return A3V2InternalExecutionResult(
+                    A3V2RouteDecision.PROTECTED,
+                    A3V2ExecutionState.FAILED,
+                    A3V2InternalResultCode.PROTECTED_EXECUTION_ERROR,
+                    error.stage,
+                )
             except Exception:
+                return A3V2InternalExecutionResult(
+                    A3V2RouteDecision.PROTECTED,
+                    A3V2ExecutionState.FAILED,
+                    A3V2InternalResultCode.PROTECTED_EXECUTION_ERROR,
+                    None,
+                )
+        except Exception:
+            self._record_deny(terminal=terminal_claimed, response=False)
+            return _internal_deny_result(A3V2InternalResultCode.INTERNAL_STATE_ERROR)
+
+    def respond(self, raw_response: object) -> A3V2Envelope:
+        """保持 C1 version-4 status-only 响应并丢弃内部 operation value。"""
+        result = self.commit_and_execute(raw_response)
+        if (
+            result.route_decision is A3V2RouteDecision.PROTECTED
+            and result.execution_state is A3V2ExecutionState.SUCCEEDED
+        ):
+            try:
+                result.consume_operation_value()
+            except A3V2StateError:
                 with self._lock:
                     self._deny_responses += 1
                 return _deny_envelope()
-        except Exception:
-            self._record_deny(terminal=terminal_claimed)
-            return _deny_envelope()
+            with self._lock:
+                self._protected_responses += 1
+            protected: A3V2ProtectedEnvelope = {
+                "version": A3_V2_RESPONSE_VERSION,
+                "status": "protected",
+            }
+            return protected
+        with self._lock:
+            self._deny_responses += 1
+        return _deny_envelope()
 
     def abort(self, raw_abort: object) -> A3V2DenyEnvelope:
         """原子终结一个规范 abort, 且不调用 verifier 或受保护操作。"""
@@ -703,12 +842,17 @@ __all__ = [
     "A3V2Envelope",
     "A3V2Evidence",
     "A3V2EvidenceCode",
+    "A3V2ExecutionState",
+    "A3V2InternalExecutionResult",
+    "A3V2InternalResultCode",
     "A3V2Message",
     "A3V2ProtectedEnvelope",
+    "A3V2ProtectedExecutionError",
     "A3V2ProtocolConfigError",
     "A3V2ProtocolCoordinator",
     "A3V2ProtocolInputError",
     "A3V2ProtocolSnapshot",
+    "A3V2RouteDecision",
     "A3V2StateError",
     "A3V2TranscriptStore",
     "A3V2TrustedInput",

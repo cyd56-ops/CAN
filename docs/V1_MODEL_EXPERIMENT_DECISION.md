@@ -60,7 +60,8 @@ credential，但不向请求方暴露单独的受保护 R2 forward。
 | SHA-256 | `85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7` |
 | First-party MD5 cross-check | `eb9058c3a382ffc7106e4002c42a8d85` |
 | Archive layout | `cifar-100-python/train`, `test`, and `meta` |
-| Labels used by V1 | `fine_labels` only; `coarse_labels` are parsed only to verify the source layout and never enter training, validation, test, model input, or authorization |
+| Labels used by V1-M1 baseline | `fine_labels` only；`coarse_labels` 仅验证 source layout，不进入 R1/R2 baseline 或 authorization |
+| Labels used by V1-M1-C2 | 独立 public-head 实验只使用同一 record 的原生 `coarse_labels`，并绑定 ordered coarse-label digest；不得从 fine-label prediction、R2 logits 或 test metrics 派生 |
 
 首方页面给出 archive、161 MB 和 MD5；SHA-256 与精确字节数由同一 URL 的
 [Hugging Face Datasets CIFAR-100 source record](https://huggingface.co/datasets/uoft-cs/cifar100/commit/8b6fcfb2e5cfcfb8387e8e3d932e103d2a3f0758)
@@ -279,6 +280,11 @@ CIFAR tensor。V1-M1 adapter 负责 section 5 的 canonicalization，并把同�
 固定长度 message envelope，因为业务输入只以 32-byte digest 进入消息，但必须使用新 version/domain
 并拒绝 A3-v1 message、Fashion-MNIST input 和跨 profile digest。
 
+C2 只允许增加协调器内部 `InternalExecutionResult` 和 version-5 adapter envelope；A3-v2 的 canonical
+message、commitment、challenge、response、transcript ID、claim/replay/expiry/abort 语义及 C1
+version-4 status-only API 不得改变。内部 operation value 最多交给一个可信 adapter 一次，不进入 wire、
+日志或 artifact。
+
 ## 12. Coordinator and model boundary
 
 V1-M1 的主路线固定为物理组合对象 `AuthenticatedR2=(V_phi,C,f_theta)`，其中 `V_phi` 是已证明
@@ -310,14 +316,21 @@ Verifier 不导入或调用 R2，也不持有私钥；它只输出 evidence。`C
 描述的是固定 Gate Layer 作为组合模型的神经子模块，不是对白盒读取、修改权重或绕过组合 API 的防御主张。
 
 当前 `AuthenticatedR2` 是 `V1-M1-C1` 的内部最小 reference：只验收 `DENY/protected`、冻结 R2 等价和
-拒绝零调用。C1 的 accepted-R2 服务器报告通过后，`V1-M1-C2` 才增加显式 public entry 与二专家硬路由：
+拒绝零调用。C1 的 accepted-R2 服务器报告已通过，`V1-M1-C2` 进入显式 public entry 与二专家硬路由：
 `PUBLIC` 只执行公共专家 `E0`，`PROTECTED` 只执行冻结受保护专家 `E1`，`DENY` 不执行二者；protected
 失败不能降级 public。多个 protected experts、`allowed_mask` 和受约束 task router 不属于本决定的
 M1-C2 实现，延后至独立 V1-M2 决策。
 
+C2 固定双入口、`layer2/layer3/layer4` stage-boundary cut、统一
+`AdaptiveAvgPool2d -> Flatten -> Linear(C_cut,20)` public head 和 `75.00%` validation/test threshold。
+请求 payload 不能选择 entry/cut/head/profile/threshold/decision。内部 route decision 与 execution state
+分离：pre-execution deny 为零业务调用；已提交 `PROTECTED` 后的 preprocessing/prefix/suffix/result
+异常准确记录 started calls，不回滚、不 fallback，并且不释放 logits/features。完整 version-5 schema、
+H1/H2 选择规则和计数矩阵由 `docs/V1_INTERNAL_CAPABILITY_TIERING_DECISION.md` 冻结。
+
 ## 13. Gate experiment matrix
 
-V1 主实验必须报告：
+V1-M1-C1 主实验必须报告：
 
 | Route | Expected verifier calls | Expected ResNet calls | Required result |
 | --- | ---: | ---: | --- |
@@ -329,6 +342,10 @@ V1 主实验必须报告：
 | verifier/model internal error | at most 1 | 0 or one entered failing call | no fallback |
 
 exact verifier 只作为 V1-C1 differential/oracle 对照；Gate Layer 是 `AuthenticatedR2` 的唯一配置神经验证路线。请求方不得选择 exact/neural 的 `A or B` 路线，也不得通过单独 R2 entry 绕过组合模型。
+
+C2 不复用本表中合并的 “at most 1” 分类；它必须按 parser/claim/verifier/commit/execution stage 分开
+报告 verifier、prefix、public-head 和 suffix 调用，并区分 pre-execution `DENY` 与 post-commit
+execution error。规范矩阵见 capability-tiering 决策 section 8。
 
 ## 14. Performance reporting
 
@@ -395,17 +412,22 @@ raw credential、transcript 或 logits。已存在该路径时 fail closed，未
   no-large-binary checks；
 - C1 evaluator 的 run-2-only state/manifest/report 绑定、fresh public conformance credential sequence、
   tamper/replay/expiry/abort/route-confusion 零 R2 calls 与 C1 report overwrite/symlink 拒绝测试；
+- C2 的双入口 binding、version-5 schema、A3-v2/C1 version-4 regression、三个 stage-boundary split、
+  single-R2 ownership、direct/split bitwise logits equality、75% H1/H2 selection、coarse-label digest、
+  精确调用矩阵、post-commit execution error 和并发单次 result delivery/release 测试；
 - training-start、single fixed-width batch progress `0.00%`/`100.00%`、无 epoch 重复 stdout 与 artifact 成功后的
   training-completed stdout tests；
 - 明确标记的 dataset/training/performance integration tests，不使默认 unit suite 隐式下载或训练。
 
 ## 17. Deferred and excluded scope
 
-R1/R2 baseline 是否通过、选定 state、artifact digest 和服务器 provenance 属于动态事实，唯一记录于
-`PROJECT_WORKLOG.md`；本决定不复制 artifact 或权重。固定 `AuthenticatedR2` Gate Layer 本地组合及其
-conformance allow/reject 等价与零调用测试已经通过。no-training C1 evaluator 已在本地实现并通过其
-确定性 unit/focused tests；当前待执行的是已授权服务器上的 accepted-R2 10,000-image 等价、隔离和端到端
-性能报告。C2 的 cut、public-head、训练选择规则和任何阈值失败后的探索性后续决策仍需另行冻结。
+R1/R2 baseline、选定 state、artifact digest、服务器 provenance 和 C1 accepted-R2 report 属于动态事实，
+唯一记录于 `PROJECT_WORKLOG.md`；本决定不复制 artifact 或权重。固定 `AuthenticatedR2` Gate Layer 本地
+组合及其 conformance allow/reject 等价与零调用测试已经通过；no-training C1 evaluator 已在服务器完成
+10,000-image direct/gated 等价、拒绝隔离和端到端性能报告。C2 的双入口、cut/public-head、75% H1/H2
+训练选择、version-5 schema、状态/计数、artifact 和失败停止规则已由 capability-tiering 决策冻结；
+A3-v2 内部结果 refactor 已实现并保持 C1 version-4 status-only/wire/transcript 回归；split/composition、
+hard dispatcher、public-head runner/training 和 accepted-state report 尚未实现。
 
 不属于 V1-M1：ImageNet、ViT/WideResNet 对比、adversarial robustness、模型水印、白盒权重保护、
 分布式训练、生产 serving、完整侧信道、联合训练的 learned authentication gate、图像/提示词 Secret

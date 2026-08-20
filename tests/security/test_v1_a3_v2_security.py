@@ -26,7 +26,10 @@ from _v1_support import (
 from can.access import (
     A3V2Clock,
     A3V2Evidence,
+    A3V2ExecutionState,
     A3V2ProtocolCoordinator,
+    A3V2RouteDecision,
+    A3V2StateError,
     A3V2TranscriptStore,
     A3V2TrustedInput,
     V1ReferenceAdapter,
@@ -184,6 +187,49 @@ def test_concurrent_duplicate_response_commits_and_calls_once() -> None:
 
     assert sum(result["status"] == "protected" for result in results) == 1
     assert recorder.snapshots == [b"canonical snapshot"]
+    snapshot = coordinator.snapshot()
+    assert snapshot.terminal_claims == 1
+    assert snapshot.verifier_calls == 1
+    assert snapshot.allow_commits == 1
+    assert snapshot.protected_calls == 1
+
+
+def test_concurrent_internal_commit_and_value_delivery_are_both_single_use() -> None:
+    """并发内部提交与 value 消费都只能成功一次。"""
+    operation_value = object()
+    recorder = V1ProtectedRecorder(result=operation_value)
+    coordinator, profile, _, _ = build_v1_coordinator(recorder=recorder)
+    issued = coordinator.begin(
+        build_v1_trusted_input(), build_v1_accepting_commitment(profile).encode()
+    )
+    assert issued["status"] == "challenge"
+    response = V1Response(issued["transcript_id"], V1_TEST_RESPONSE).encode()
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        results = tuple(
+            executor.map(lambda _index: coordinator.commit_and_execute(response), range(32))
+        )
+
+    successful = [
+        result
+        for result in results
+        if result.route_decision is A3V2RouteDecision.PROTECTED
+        and result.execution_state is A3V2ExecutionState.SUCCEEDED
+    ]
+    assert len(successful) == 1
+    assert recorder.snapshots == [b"canonical snapshot"]
+
+    def consume_once(_index: int) -> object | None:
+        try:
+            return successful[0].consume_operation_value()
+        except A3V2StateError:
+            return None
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        delivered = tuple(executor.map(consume_once, range(32)))
+
+    assert sum(value is operation_value for value in delivered) == 1
+    assert sum(value is None for value in delivered) == 31
     snapshot = coordinator.snapshot()
     assert snapshot.terminal_claims == 1
     assert snapshot.verifier_calls == 1

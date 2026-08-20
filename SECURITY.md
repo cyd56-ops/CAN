@@ -20,9 +20,10 @@ parser、公开 registry、coefficient-domain exact reference、A3-v2 commit-fir
 evidence adapter 已实现；`V1-P2-PSR-E1` 也已实现临时 generated-key fixture、确定性 bounded-uniform
 sampler、single-attempt emit/abort、A3-v2 fresh-transcript retry/exhaustion harness 和无 secret manifest。
 `CAN-RELU-V1-MSIS-COEFF-v1` dependency-free integer graph、neural evidence adapter 及其 A3-v2
-route-level zero-call tests 也已实现。生产 keygen/prover、密码安全参数、NTT、PyTorch/qint8/CUDA/export
-和性能结论仍未实现。上述结论只适用于本机 toy
-credential/分类实验，不是安全承载
+route-level zero-call tests 也已实现。V1-M1-C1 accepted-R2 无训练服务器报告已完成 10,000-image
+direct/gated 等价、拒绝隔离和分段 latency/throughput；生产 keygen/prover、密码安全参数、NTT、
+PyTorch/qint8/CUDA/export 和跨设备/生产性能结论仍未实现。上述结论只适用于固定单机 tuple 上的
+非生产 toy credential/分类实验，不是安全承载
 密码、服务部署或生产访问控制保证。
 
 本文档描述计划中的信任模型与必须保持的安全不变量，不构成生产安全保证。任何实现与实验结果都必须明确标注 toy、研究性、黑盒假设和未证明部分。
@@ -49,9 +50,10 @@ route confusion 或让旧凭据进入新 verifier 的行为都必须 fail closed
 - 本地 profile registry、公开验证参数和策略配置可信；
 - 在需要 replay 防护的阶段，nonce/challenge 状态存储可信；
 - 业务网络本身不单独提交认证或授权；V1-M1-C1 的受保护业务分支只能作为组合模型内部、由 Gate
-  Layer evidence 和协调器决定控制的分支调用。M1-C2 只在同一假设下增加显式 public expert 与
-  protected expert 二路硬分派；后续 M2 才增加多个 protected experts 和权限掩码。唯一协调器始终
-  提交 public/protected/deny，未经 protected 提交不得调用 suffix 或受保护专家。
+  Layer evidence 和协调器决定控制的分支调用。M1-C2 只在同一假设下增加由可信部署绑定的显式
+  public entry、protected entry 与二路 hard dispatcher；请求 payload 不能选择 entry。后续 M2 才增加
+  多个 protected experts 和权限掩码。唯一协调器始终提交 public/protected/deny route decision，未经
+  protected 提交不得调用 suffix 或受保护专家。
 
 业务输入 `x` 与 credential 必须使用独立 schema 和解析路径。V1-M1/M2 中 credential 是独立的 commitment/challenge/response transcript，绑定 image digest、model/profile、nonce 和 expiry；客户端私有材料不得进入 Gate Layer、R2、日志或 checkpoint。V1 主路线不把该 transcript 称为 Secret Trigger。若未来增加静态 trigger 对照，只能在独立 protocol identifier 下作为可重放 bearer-gate，并明确不提供身份、不可伪造性或 anti-replay；它不得依赖业务输入中的隐藏像素模式、纹理、提示词或普通特征，不得通过后门训练实现，也不得成为 V1 fallback。
 
@@ -143,13 +145,20 @@ key-specific 执行网络；CAN 安全承载 verifier 不采用该密钥布局�
 `V_nn==V_ref` 证明。
 
 V1-M1-C1 保留为内部最小 reference/evaluator，不作为长期 public/protected 能力。C1 的 accepted-R2
-报告闭合后，M1-C2 才研究二专家 capability tiering：设冻结 R2 为
-`f_theta=d_theta o s_theta`，显式 public entry 只能执行 `E0=g_psi(s_theta(x))` 并返回预注册的
+报告现已闭合，M1-C2 进入二专家 capability tiering：设冻结 R2 为
+`f_theta=d_theta o s_theta`，显式 public entry 只能执行 `E0=g_psi(s_theta(P(x)))` 并返回预注册的
 粗粒度 public label；protected entry 仅在 A3-v2 coordinator 提交后执行
-`E1=d_theta(s_theta(x))`，且其 logits 必须与直接 R2 完全相同。public/reject path 不得执行 suffix、
+`E1=d_theta(s_theta(P(x)))`，且其 logits 必须与直接 R2 完全相同。public/pre-execution deny path
+不得执行 suffix、
 返回 prefix feature、protected logits 或可升级 token；protected protocol 失败、scope mismatch 或
 空授权结果必须 deny，不能回退至 public。`g_psi` 可独立训练，但 R2 `theta`、`V_phi` 和 credential
-relation 必须冻结。
+relation 必须冻结。C2 对外使用独立 version-5 schema，内部保持 A3-v2 transcript 和 C1 version-4 API；
+请求不能提交 entry、cut、head、profile、threshold 或 decision。
+
+C2 route decision 与 execution state 正交：pre-execution `DENY` 为零业务调用；协调器提交 `PROTECTED`
+后的 preprocessing/prefix/suffix/result 异常属于 `PROTECTED_EXECUTION_ERROR`，必须记录已经开始的真实
+调用，不得伪装为 zero-call deny、回滚 transcript 或 fallback public。外部可以统一返回固定 deny
+envelope，但内部审计必须保留 route decision、失败阶段和是否已启动各业务 module。
 
 V1-M2 只在 C2 闭合后研究多受保护专家路由。固定 verifier 仍只产生 evidence；canonical claims
 由严格 parser 产生，唯一协调器依据可信本地 policy/registry 提交不可变 `RouteContext` 与
@@ -318,12 +327,14 @@ pre-commit 拒绝路径必须：
 如果原型受框架限制而仍计算受保护业务网络，只能声明“未释放受保护输出”，不能声明“未使用受保护模型能力”，并必须把该差异记录为残余风险。
 
 显式启用 tiered capability 后，public capability 是受信 public entry 的独立结果，而不是上述错误
-的弱回退。protected entry 的任何失败仍固定 deny 并产生零 public/protected-model 调用；public
-entry 的任何输入或配置失败同样 deny，且不得调用 protected path。public、protected 与 deny
-必须具有互斥、稳定且可测试的 version-2 envelope，响应本身不具有授权能力。
+的弱回退。protected entry 在协调器提交前的任何失败固定 deny，并产生零 public/prefix/suffix 调用；
+提交后的执行失败仍固定 deny，但必须按实际 started stage 计数。public entry 的输入或构造前配置失败
+同样 deny，且不得调用 protected path。A2-E2 保持互斥 version-2 envelope；V1-M1-C2 使用独立且稳定的
+version-5 challenge/public/protected/deny envelope，响应本身不具有授权能力。
 
-V1-M1-C2 沿用该三态语义作为二专家硬路由：`PUBLIC` 只调用 E0，`PROTECTED` 只调用 E1，
-`DENY` 不调用二者。V1-M2 在此基础上增加多个受保护 experts，但只能消费协调器已提交的
+V1-M1-C2 沿用该三态语义作为二专家硬路由：成功 `PUBLIC` 只调用 prefix/E0，成功 `PROTECTED`
+只调用 prefix/E1，pre-execution `DENY` 不调用二者。RouteDecision 与 ExecutionState 分离，禁止把
+post-commit error 计入 zero-call deny。V1-M2 在此基础上增加多个受保护 experts，但只能消费协调器已提交的
 `allowed_mask`；mask 为空、unknown expert、scope confusion、router tie/exception 或授权集合不足
 均必须在任何受保护 expert forward 前 fail closed，且不能自动降级到 E0。
 
@@ -343,6 +354,9 @@ V1-M1-C2 沿用该三态语义作为二专家硬路由：`PUBLIC` 只调用 E0�
 - 验证失败时受保护模型和受保护工具调用计数均为零；
 - public capability 不能调用 protected model/head、泄露 protected 输出或升级/重标记/复用为
   protected capability，protected 验证失败也不能 fallback 到 public；
+- C2 双入口不能由 payload 选择，version-4/version-5 schema 不能混用；canonical relation reject 为一次
+  verifier/零业务调用，malformed/replay/expiry/abort/pre-verifier mismatch 为零 verifier/零业务调用；
+  post-commit preprocessing/prefix/suffix/result error 按真实 started call 计数，且最多一次执行和结果释放；
 - A4 exact proof 编码、message/salt/vector tamper、超界 signed-int8、退化公开矩阵、client key/profile
   注入以及 A3 invalid-proof retry/atomic consume；
 - A4-C1 topology、全部 signed-int8 norm 标量域、完整 residual point-pulse 标量域、canonical
