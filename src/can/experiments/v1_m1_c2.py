@@ -22,7 +22,7 @@ from torch.utils.data import DataLoader, Dataset
 from can.access.v1_m1_adapter import V1_M1_INPUT_PROFILE_SHA256, normalize_v1_m1_uint8_batch
 from can.access.v1_m1_c2 import V1M1C2Cut, V1M1C2PublicHead
 from can.experiments import v1_m1_baseline as baseline
-from can.experiments.v1_m1_c1 import load_v1_m1_c1_accepted_r2
+from can.experiments.v1_m1_c1 import load_v1_m1_c1_accepted_r2_details
 from can.model import V1Cifar100ResNet18
 
 V1_M1_C2_EXPERIMENT_ID: Final = "CAN-V1-M1-C2-PUBLIC-HEAD-v1"
@@ -626,7 +626,8 @@ def run_v1_m1_c2(
     paths = _artifact_paths(artifact_root)
     h1_config = V1M1C2HeadTrainingConfig("H1", V1M1C2Cut.LAYER2, 1729)
     data = _load_c2_data(data_root, h1_config)
-    model, accepted_r2_state_sha256 = load_v1_m1_c1_accepted_r2(accepted_artifact_root, device)
+    accepted_r2 = load_v1_m1_c1_accepted_r2_details(accepted_artifact_root, device)
+    model = accepted_r2.model
     h1_candidates = tuple(
         _train_head(
             model,
@@ -663,7 +664,7 @@ def run_v1_m1_c2(
         h2,
         test,
         data,
-        accepted_r2_state_sha256,
+        accepted_r2.canonical_state_sha256,
         device,
     )
     return V1M1C2ExperimentResult(
@@ -673,7 +674,7 @@ def run_v1_m1_c2(
         h2=h2,
         test=test,
         coarse_labels_sha256=data.coarse_labels_sha256,
-        accepted_r2_state_sha256=accepted_r2_state_sha256,
+        accepted_r2_state_sha256=accepted_r2.canonical_state_sha256,
         artifacts=paths,
     )
 

@@ -314,6 +314,14 @@ direct/split logits 对照与 digest、完整计数矩阵、分段 latency/throu
 并发重复提交、route confusion、post-commit execution error、public artifact R2-state absence、全部
 version-5 schema，以及所有失败案例和未满足条件。
 
+commit `8455ff3d9e2c6f34edd0bbd2425c6ed4d9d5e1fd` 的 training runner 把 decoded-data digest 误写到
+manifest 的 `accepted_r2_state_sha256` 字段；该错误只影响 provenance 标签，不改变已保存 public-head
+state、H1/H2 选择或 `85.17%` test 结果。已有正式 artifact 不覆盖、不删除、不重训。evaluator 仅在原
+manifest 该字段精确等于同一 manifest 的 `data.decoded_sha256`，且原 manifest/report/state 其余完整绑定
+全部通过时，追加一次 `metadata-correction.json`；修正记录必须绑定三个原文件的 SHA-256，并写明冻结
+accepted R2 canonical state digest。未来 runner 直接写入正确 state digest，不需要该修正文件。正式报告
+必须同时记录原 manifest/report/state 摘要和 correction 摘要，不能静默改写历史 provenance。
+
 可选 capability-leakage 实验不属于 C2 闭合条件。只有论文进一步声称 public 用户不能获得 protected
 fine-grained information 时才必须执行，并预注册 attacker auxiliary data。至少比较 coarse-prior-only、
 image-only surrogate 与 image-plus-public-output surrogate；训练只使用 attacker auxiliary train split，

@@ -11,6 +11,7 @@ import struct
 import tempfile
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import Final, cast
@@ -80,6 +81,15 @@ _V1_M1_C1_DEVICE: Final = torch.device("cuda:0")
 
 class V1M1C1EvaluatorError(RuntimeError):
     """表示 C1 accepted-state evaluator 不满足固定实验契约。"""
+
+
+@dataclass(frozen=True, slots=True)
+class V1M1C1AcceptedR2:
+    """保存已核验 R2 及彼此独立的数据和模型摘要。"""
+
+    model: V1Cifar100ResNet18
+    decoded_data_sha256: str
+    canonical_state_sha256: str
 
 
 class _CounterNonce:
@@ -461,6 +471,15 @@ def load_v1_m1_c1_accepted_r2(
     device: torch.device,
 ) -> tuple[V1Cifar100ResNet18, str]:
     """一次性核验 accepted R2 artifact, 并将冻结模型加载到指定 CUDA 设备。"""
+    accepted = load_v1_m1_c1_accepted_r2_details(artifact_root, device)
+    return accepted.model, accepted.decoded_data_sha256
+
+
+def load_v1_m1_c1_accepted_r2_details(
+    artifact_root: Path,
+    device: torch.device,
+) -> V1M1C1AcceptedR2:
+    """核验 accepted R2, 分别返回数据摘要与模型状态摘要。"""
     if type(device) is not torch.device or device.type != "cuda" or device.index != 0:
         raise V1M1C1EvaluatorError("C1 evaluator requires explicit cuda:0")
     if not isinstance(artifact_root, Path):
@@ -498,7 +517,11 @@ def load_v1_m1_c1_accepted_r2(
     ) as error:
         raise V1M1C1EvaluatorError("accepted R2 state cannot be loaded") from error
     _validate_loaded_state(model, value)
-    return model.to(device).eval(), decoded_sha256
+    return V1M1C1AcceptedR2(
+        model=model.to(device).eval(),
+        decoded_data_sha256=decoded_sha256,
+        canonical_state_sha256=V1_M1_C1_ACCEPTED_STATE_SHA256,
+    )
 
 
 def _load_raw_test_split(data_root: Path, expected_decoded_sha256: str) -> tuple[Tensor, Tensor]:
@@ -1166,7 +1189,9 @@ __all__ = [
     "V1_M1_C1_EXPERIMENT_ID",
     "V1_M1_C1_REPORT_DIRECTORY",
     "V1_M1_C1_REPORT_FILENAME",
+    "V1M1C1AcceptedR2",
     "V1M1C1EvaluatorError",
     "load_v1_m1_c1_accepted_r2",
+    "load_v1_m1_c1_accepted_r2_details",
     "run_v1_m1_c1_evaluator",
 ]
