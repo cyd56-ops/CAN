@@ -483,14 +483,44 @@ R2 state/baseline digest、10,000-image direct/gated logits/prediction 等价、
 latency/throughput 均有结果。报告只作为动态 provenance 记录；服务器 ignored artifact、数据和 state
 未复制到本地。**
 
-**唯一下一步：`LOCAL_OK` 等待 C2 source checkpoint 发布授权。** C2 的单一 R2 module-tree
+**唯一下一步：`SERVER_REQUIRED` 执行 C2 H1/H2 public-head training。** C2 的单一 R2 module-tree
 split/composition、可信双入口、version-5 adapter、执行前 hard dispatcher、H1/H2 public-head runner、
 coarse-label digest、validation-only 选择和 public-head artifact writer 均已在本地实现；cut 固定为
-`layer2/layer3/layer4` 完整 stage boundary。当前不下载 CIFAR-100、不训练 public head、不生成正式 accepted
-artifact、不启动服务器；本地随机权重只能验证组合语义，不能替代 accepted R2 public/protected accuracy
-结论。准确源码文件已完成只读审查并暂存为 19 个文件；但尚未提交或推送。只有在得到发布授权、形成可拉取的完整 commit 后，才可将唯一下一步
-切换为 `SERVER_REQUIRED`，通知项目负责人执行唯一 H1/H2 GPU 命令；通知时必须同时给出冻结 commit、拉取
-核验、预期产物和失败/停止条件。forward counter/latency 继续通过 `experiments/` hook/wrapper 采集，不
+`layer2/layer3/layer4` 完整 stage boundary。本地没有下载 CIFAR-100、训练 public head、生成正式 accepted
+artifact 或启动服务器；本地随机权重只能验证组合语义，不能替代 accepted R2 public/protected accuracy
+结论。准确源码文件已审查并发布为完整 commit `8455ff3d9e2c6f34edd0bbd2425c6ed4d9d5e1fd`，远端
+`origin/main` 已核验为同一 hash。服务器必须先在既有 `can-v1` 环境中执行 `git fetch origin main`，再核验
+`git rev-parse HEAD` 等于该完整 hash，并确认已有 accepted `artifacts/v1-m1/run-2/`、已验证解压的
+`data/v1-m1/cifar-100-python/`，且 `artifacts/v1-m1/c2/accepted-public-head.pt` 不存在。唯一正式命令为：
+
+```bash
+PYTHONHASHSEED=1730 CUBLAS_WORKSPACE_CONFIG=:4096:8 python - <<'PY'
+from pathlib import Path
+
+import torch
+
+from can.experiments.v1_m1_c2 import preflight_v1_m1_c2, run_v1_m1_c2
+
+print(preflight_v1_m1_c2())
+result = run_v1_m1_c2(
+    Path("data/v1-m1"),
+    Path("artifacts/v1-m1"),
+    torch.device("cuda:0"),
+)
+print(result.accepted_cut.value, result.accepted.config.run_name)
+print(result.test.top1_percent, result.artifacts.root)
+PY
+python -m json.tool artifacts/v1-m1/c2/manifest.json
+python -m json.tool artifacts/v1-m1/c2/report.json
+git status --short
+```
+
+预期产物是 ignored `artifacts/v1-m1/c2/{accepted-public-head.pt,manifest.json,report.json}`；manifest/report
+必须记录 H1 三个 cut、H2 选中 cut、accepted head、coarse-label digest、input profile digest、accepted R2
+state digest 和最终 test 指标。任一环境 tuple、commit、artifact/data precondition、preflight、threshold、
+stability、digest、traceback 或 JSON 校验失败都立即停止，保留已有输出，不删除、不覆盖、不重试、不切换
+seed/cut/threshold。服务器正式训练期间不得修改源码或启动第二个任务；若需要修改，先停止计费任务，回到
+`LOCAL_OK` 重新完成测试和发布门槛。forward counter/latency 继续通过 `experiments/` hook/wrapper 采集，不
 写入 `access/` 请求路径。不实现 M2/V2/Stage B、learned authentication gate、图像/提示词 Secret Trigger、
 白盒保证或任意模型变换安全。**
 
@@ -2706,3 +2736,19 @@ artifact、不启动服务器；本地随机权重只能验证组合语义，不
   coarse parser。当前完整 `HEAD` 仍为 `ff7ec485baefa7824e8eb21e86f78929ab8f94ee`；源码尚未 commit/push，
   用户已有文档、`AGENTS.md`、服务器手册、`tests/_v1_support.py` 与 untracked `ara/` 均保留。唯一下一步为
   上方 `LOCAL_OK` source checkpoint 已审查并暂存；未得到发布授权、形成并发布完整 commit 前不得触发服务器成本。
+
+## D-057 - Publish C2 source checkpoint and authorize server gate
+
+- **Date:** 2026-08-20
+- **Publication:** 用户明确要求提交并推送；本地 C2 source checkpoint
+  `8455ff3d9e2c6f34edd0bbd2425c6ed4d9d5e1fd` 已推送到 `origin/main`，远端 `git ls-remote` 返回同一完整
+  hash。提交内容为 D-055/D-056 的 19 个源码、测试和治理文件；未提交或推送 `AGENTS.md`、
+  `docs/V1_AUTODL_ENVIRONMENT_SETUP.md` 和 untracked `ara/`。
+- **Verification:** 推送前后本地 `.venv/bin/python -m pytest` 均为 `667 passed`；`.venv/bin/ruff check .`、
+  `.venv/bin/ruff format --check .`、`.venv/bin/mypy src tests`、`.venv/bin/python -m pip check`、
+  `bash -n scripts/check_governance_docs.sh`、`./scripts/check_governance_docs.sh`、`git diff --cached --check`
+  和 `git diff --check` 均通过。pip 仅报告 cache 目录不可写并禁用 cache，无 broken requirements。
+- **Resource transition:** 源码已可拉取且唯一 H1/H2 GPU 命令、accepted R2/data preconditions、预期 ignored
+  artifacts 和失败/停止条件已写入 Current next step；因此唯一下一步转为 `SERVER_REQUIRED`。本地未启动、
+  未重启或保持计费服务器。服务器任务若需要任何代码、配置或命令修改，必须立即停止并释放计费任务，回到
+  `LOCAL_OK` 重新测试、提交和推送后才能继续。
