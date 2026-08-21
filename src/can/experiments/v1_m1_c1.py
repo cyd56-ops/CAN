@@ -464,6 +464,8 @@ def _validate_loaded_state(model: V1Cifar100ResNet18, value: object) -> None:
     if baseline._hash_model_state(model) != V1_M1_C1_ACCEPTED_STATE_SHA256:
         raise V1M1C1EvaluatorError("accepted R2 canonical state digest changed")
     model.eval()
+    for parameter in model.parameters():
+        parameter.requires_grad_(False)
 
 
 def load_v1_m1_c1_accepted_r2(

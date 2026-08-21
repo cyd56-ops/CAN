@@ -216,6 +216,13 @@ loss 为无 label smoothing/class weighting/mixup/cutmix 的 `CrossEntropyLoss`�
 `CosineAnnealingLR(T_max=50, eta_min=0.0)`。共享 R2 prefix/suffix 在全部阶段保持 `eval`、float32、
 `requires_grad=False`，不得重训、微调、改变 accepted state 或以 public 指标更换 R2。
 
+正式 runner 在数据加载和首个 H1 deterministic setup 后输出一次 `training started`，并用单一固定宽度
+stdout 进度条覆盖三个 H1 candidate、一个 H2、每个 selected-validation 和最终 test 的全部 batch。进度条
+只显示 `run/seed/cut/stage/epoch/batch` 公开计数，不输出 loss、单样本标签、logits、feature、state 或摘要，
+不参与随机性、优化、checkpoint/cut/head 选择、artifact 或 latency 测量。最终 test batch 完成时到达
+`100.00%`；accepted artifact 原子写入成功后重绘完成进度并输出 `training completed`，任何中途失败不得
+伪装为完成。
+
 正式 public artifact 只能保存 selected public-head state、cut identifier、训练/选择 metrics、ordered
 coarse-label digest、accepted R2/data/profile digest 和环境 provenance；不得复制或写出 R2 state、
 prefix feature、图像、credential、transcript 或 logits。首次服务器运行必须在本地 runner、parser、

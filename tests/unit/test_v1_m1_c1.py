@@ -132,6 +132,23 @@ def test_server_environment_requires_and_applies_r2_determinism(
     assert observed == [1730]
 
 
+def test_loaded_r2_state_is_frozen_after_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """accepted state 通过摘要核验后必须变为不可训练模型。"""
+    model = _model()
+    state = {name: value.detach().clone() for name, value in model.state_dict().items()}
+    monkeypatch.setattr(
+        v1_m1_baseline,
+        "_hash_model_state",
+        lambda _model: v1_m1_c1.V1_M1_C1_ACCEPTED_STATE_SHA256,
+    )
+
+    v1_m1_c1._validate_loaded_state(model, state)
+
+    assert all(not parameter.requires_grad for parameter in model.parameters())
+
+
 def test_reject_probes_never_call_r2() -> None:
     """tamper/replay/expiry/abort/route confusion 均不得调用 protected R2。"""
     _public_profile, neural_profile, commitment = v1_m1_c1._build_public_conformance_material()

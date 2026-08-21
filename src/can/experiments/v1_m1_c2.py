@@ -149,6 +149,78 @@ class V1M1C2ExperimentResult:
     artifacts: V1M1C2ArtifactPaths
 
 
+class _V1M1C2ProgressReporter:
+    """以单一固定宽度进度条展示 C2 public-head 全流程。"""
+
+    __slots__ = ("_completed_batches", "_started", "_total_batches")
+
+    def __init__(self, total_batches: int) -> None:
+        self._total_batches = total_batches
+        self._completed_batches = 0
+        self._started = False
+
+    def start(self, config: V1M1C2HeadTrainingConfig, first_train_batch_count: int) -> None:
+        if self._started:
+            return
+        self._started = True
+        print(
+            f"V1-M1-C2 training started head_runs=4 "
+            f"epochs_per_head={config.epoch_count} total_batches={self._total_batches}",
+            flush=True,
+        )
+        self._render(config, "train", 0, 0, first_train_batch_count)
+
+    def complete_batch(
+        self,
+        config: V1M1C2HeadTrainingConfig,
+        stage: str,
+        epoch: int,
+        stage_batch: int,
+        stage_batch_count: int,
+    ) -> None:
+        self._completed_batches += 1
+        self._render(config, stage, epoch, stage_batch, stage_batch_count)
+
+    def finish(
+        self,
+        config: V1M1C2HeadTrainingConfig,
+        final_test_batch_count: int,
+    ) -> None:
+        self._render(
+            config,
+            "complete",
+            config.epoch_count,
+            final_test_batch_count,
+            final_test_batch_count,
+        )
+        print(flush=True)
+        print(
+            f"V1-M1-C2 training completed accepted_run={config.run_name} "
+            f"cut={config.cut.value} completed_batches="
+            f"{self._completed_batches}/{self._total_batches}",
+            flush=True,
+        )
+
+    def _render(
+        self,
+        config: V1M1C2HeadTrainingConfig,
+        stage: str,
+        epoch: int,
+        stage_batch: int,
+        stage_batch_count: int,
+    ) -> None:
+        progress = _format_v1_m1_c2_batch_progress(
+            config,
+            self._completed_batches,
+            self._total_batches,
+            stage,
+            epoch,
+            stage_batch,
+            stage_batch_count,
+        )
+        print(f"\r{progress}", end="", flush=True)
+
+
 class _V1M1C2Dataset(Dataset[tuple[Tensor, Tensor]]):
     """为 public head 提供 canonical image 与 official coarse label。"""
 
@@ -339,12 +411,50 @@ def _hash_predictions(predictions: list[int]) -> str:
     return digest.hexdigest()
 
 
+def _format_v1_m1_c2_batch_progress(
+    config: V1M1C2HeadTrainingConfig,
+    completed_batches: int,
+    total_batches: int,
+    stage: str,
+    epoch: int,
+    stage_batch: int,
+    stage_batch_count: int,
+) -> str:
+    """构造只含公开训练计数的固定宽度 C2 进度条。"""
+    percent = completed_batches * 100.0 / total_batches
+    bar_width = 30
+    filled = int(completed_batches * bar_width / total_batches)
+    bar = "#" * filled + "-" * (bar_width - filled)
+    return (
+        f"V1-M1-C2 progress [{bar}] {percent:6.2f}% "
+        f"run={config.run_name} seed={config.seed} cut={config.cut.value} stage={stage} "
+        f"epoch={epoch}/{config.epoch_count} batch={stage_batch}/{stage_batch_count}"
+    )
+
+
+def _v1_m1_c2_total_batch_count(data: _V1M1C2DataBundle) -> int:
+    """计算三个 H1、一个 H2、复核 validation 与最终 test 的总 batch 数。"""
+    train_batch_count = len(data.train_loader)
+    validation_batch_count = len(data.validation_loader)
+    test_batch_count = len(data.test_loader)
+    per_head = (
+        V1_M1_C2_HEAD_EPOCH_COUNT * (train_batch_count + validation_batch_count)
+        + validation_batch_count
+    )
+    return 4 * per_head + test_batch_count
+
+
 def _evaluate_head(
     model: V1Cifar100ResNet18,
     head: V1M1C2PublicHead,
     cut: V1M1C2Cut,
     loader: DataLoader[tuple[Tensor, Tensor]],
     device: torch.device,
+    *,
+    progress: _V1M1C2ProgressReporter | None = None,
+    config: V1M1C2HeadTrainingConfig | None = None,
+    stage: str = "validation",
+    epoch: int = 0,
 ) -> V1M1C2HeadMetrics:
     """在 frozen prefix 上评估 coarse head, 并返回公开 digest。"""
     model.eval()
@@ -355,7 +465,8 @@ def _evaluate_head(
     correct = 0
     predictions: list[int] = []
     with torch.inference_mode():
-        for images, labels in loader:
+        batch_count = len(loader)
+        for batch_index, (images, labels) in enumerate(loader, start=1):
             inputs = images.to(device, non_blocking=True)
             targets = labels.to(device, non_blocking=True)
             logits = head(_prefix(model, cut, inputs))
@@ -364,6 +475,8 @@ def _evaluate_head(
             correct += int((predicted == targets).sum().item())
             total += int(targets.shape[0])
             predictions.extend(int(value) for value in predicted.cpu().tolist())
+            if progress is not None and config is not None:
+                progress.complete_batch(config, stage, epoch, batch_index, batch_count)
     if total < 1:
         raise V1M1C2ExperimentError("C2 evaluation loader is empty")
     return V1M1C2HeadMetrics(
@@ -380,6 +493,7 @@ def _train_head(
     config: V1M1C2HeadTrainingConfig,
     data: _V1M1C2DataBundle,
     device: torch.device,
+    progress: _V1M1C2ProgressReporter,
 ) -> V1M1C2HeadRunResult:
     """执行一次固定 head-only 训练, 按 validation 严格提升选择 state。"""
     _configure_c2_determinism(config.seed)
@@ -403,9 +517,11 @@ def _train_head(
     best_epoch = 0
     best_state: dict[str, Tensor] | None = None
     epochs: list[V1M1C2EpochMetrics] = []
+    train_batch_count = len(data.train_loader)
+    progress.start(config, train_batch_count)
     for epoch in range(1, config.epoch_count + 1):
         head.train()
-        for images, labels in data.train_loader:
+        for batch_index, (images, labels) in enumerate(data.train_loader, start=1):
             inputs = images.to(device, non_blocking=True)
             targets = labels.to(device, non_blocking=True)
             optimizer.zero_grad(set_to_none=True)
@@ -414,7 +530,18 @@ def _train_head(
             loss = criterion(head(features.detach()), targets)
             loss.backward()
             optimizer.step()
-        validation = _evaluate_head(model, head, config.cut, data.validation_loader, device)
+            progress.complete_batch(config, "train", epoch, batch_index, train_batch_count)
+        validation = _evaluate_head(
+            model,
+            head,
+            config.cut,
+            data.validation_loader,
+            device,
+            progress=progress,
+            config=config,
+            stage="validation",
+            epoch=epoch,
+        )
         epochs.append(V1M1C2EpochMetrics(epoch=epoch, validation=validation))
         if validation.top1_percent > best_validation:
             best_epoch = epoch
@@ -424,7 +551,17 @@ def _train_head(
     if best_state is None:
         raise V1M1C2ExperimentError("C2 head did not produce a validation checkpoint")
     head.load_state_dict(best_state, strict=True)
-    selected_validation = _evaluate_head(model, head, config.cut, data.validation_loader, device)
+    selected_validation = _evaluate_head(
+        model,
+        head,
+        config.cut,
+        data.validation_loader,
+        device,
+        progress=progress,
+        config=config,
+        stage="selected_validation",
+        epoch=best_epoch,
+    )
     return V1M1C2HeadRunResult(
         config=config,
         selected_epoch=best_epoch,
@@ -628,12 +765,14 @@ def run_v1_m1_c2(
     data = _load_c2_data(data_root, h1_config)
     accepted_r2 = load_v1_m1_c1_accepted_r2_details(accepted_artifact_root, device)
     model = accepted_r2.model
+    progress = _V1M1C2ProgressReporter(_v1_m1_c2_total_batch_count(data))
     h1_candidates = tuple(
         _train_head(
             model,
             V1M1C2HeadTrainingConfig("H1", cut, V1_M1_C2_RUN_SEEDS["H1"]),
             data,
             device,
+            progress,
         )
         for cut in V1M1C2Cut
     )
@@ -643,6 +782,7 @@ def run_v1_m1_c2(
         V1M1C2HeadTrainingConfig("H2", accepted_cut, V1_M1_C2_RUN_SEEDS["H2"]),
         data,
         device,
+        progress,
     )
     h1_selected = next(item for item in h1_candidates if item.config.cut is accepted_cut)
     if (
@@ -654,7 +794,17 @@ def run_v1_m1_c2(
     accepted = _select_accepted_head(h1_selected, h2)
     accepted_head = V1M1C2PublicHead(accepted_cut.channels).to(device=device, dtype=torch.float32)
     accepted_head.load_state_dict(accepted.state, strict=True)
-    test = _evaluate_head(model, accepted_head, accepted_cut, data.test_loader, device)
+    test = _evaluate_head(
+        model,
+        accepted_head,
+        accepted_cut,
+        data.test_loader,
+        device,
+        progress=progress,
+        config=accepted.config,
+        stage="test",
+        epoch=accepted.config.epoch_count,
+    )
     if test.top1_percent < V1_M1_C2_ACCEPTANCE_TOP1_PERCENT:
         raise V1M1C2ExperimentError("C2 accepted public head test threshold failed")
     _write_c2_artifacts(
@@ -667,6 +817,7 @@ def run_v1_m1_c2(
         accepted_r2.canonical_state_sha256,
         device,
     )
+    progress.finish(accepted.config, len(data.test_loader))
     return V1M1C2ExperimentResult(
         accepted_cut=accepted_cut,
         accepted=accepted,

@@ -80,6 +80,53 @@ def test_training_config_rejects_seed_or_topology_changes() -> None:
         )
 
 
+def test_batch_progress_uses_fixed_width_bar_and_public_counts() -> None:
+    """C2 batch 进度条必须显示固定宽度、run、cut 和公开计数。"""
+    config = v1_m1_c2.V1M1C2HeadTrainingConfig("H2", V1M1C2Cut.LAYER4, 1730)
+
+    initial = v1_m1_c2._format_v1_m1_c2_batch_progress(config, 0, 4, "train", 0, 0, 2)
+    completed = v1_m1_c2._format_v1_m1_c2_batch_progress(config, 4, 4, "complete", 50, 1, 1)
+
+    assert initial == (
+        "V1-M1-C2 progress [------------------------------]   0.00% "
+        "run=H2 seed=1730 cut=layer4 stage=train epoch=0/50 batch=0/2"
+    )
+    assert completed == (
+        "V1-M1-C2 progress [##############################] 100.00% "
+        "run=H2 seed=1730 cut=layer4 stage=complete epoch=50/50 batch=1/1"
+    )
+
+
+def test_batch_progress_reports_one_start_and_artifact_gated_completion(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """C2 全流程只输出一次开始; 仅在调用 finish 后输出完成。"""
+    h1 = v1_m1_c2.V1M1C2HeadTrainingConfig("H1", V1M1C2Cut.LAYER2, 1729)
+    h2 = v1_m1_c2.V1M1C2HeadTrainingConfig("H2", V1M1C2Cut.LAYER4, 1730)
+    reporter = v1_m1_c2._V1M1C2ProgressReporter(3)
+
+    reporter.start(h1, first_train_batch_count=1)
+    reporter.complete_batch(h1, "train", 1, 1, 1)
+    reporter.start(h2, first_train_batch_count=1)
+    reporter.complete_batch(h2, "selected_validation", 50, 1, 1)
+    reporter.complete_batch(h2, "test", 50, 1, 1)
+    before_finish = capsys.readouterr().out
+
+    assert before_finish.count("V1-M1-C2 training started") == 1
+    assert "V1-M1-C2 training completed" not in before_finish
+    assert "V1-M1-C2 progress [##############################] 100.00%" in before_finish
+    assert "run=H1 seed=1729 cut=layer2 stage=train" in before_finish
+    assert "run=H2 seed=1730 cut=layer4 stage=test" in before_finish
+
+    reporter.finish(h2, final_test_batch_count=1)
+    completion = capsys.readouterr().out
+
+    assert "V1-M1-C2 progress [##############################] 100.00%" in completion
+    assert completion.endswith(
+        "V1-M1-C2 training completed accepted_run=H2 cut=layer4 completed_batches=3/3\n"
+    )
+
+
 def test_h1_h2_determinism_uses_independent_rng_seeds_in_one_process(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
